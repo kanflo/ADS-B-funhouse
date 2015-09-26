@@ -290,8 +290,8 @@ def adsbThread():
 
   if args.basestationdb:
     gPlaneDBs.append(icao24.PlaneDB(args.basestationdb))
-  if args.planedb:
-    gPlaneDBs.append(icao24.PlaneDB(args.planedb))
+  if args.myplanedb:
+    gPlaneDBs.append(icao24.PlaneDB(args.myplanedb))
 
 
   lastClean = datetime.datetime.utcnow()
@@ -353,14 +353,14 @@ def main():
 
   parser.add_argument('-r', '--radar-name', help="name of radar, used as topic string /adsb/<radar>/json", default='radar')
   parser.add_argument('-m', '--mqtt-host', help="MQTT broker hostname", default='127.0.0.1')
-  parser.add_argument('-p', '--mqtt-port', type=int, help="MQTT broker port number", default=1883)
+  parser.add_argument('-p', '--mqtt-port', type=int, help="MQTT broker port number (default 1883)", default=1883)
   parser.add_argument('-u', '--mqtt-user', help="MQTT broker user")
   parser.add_argument('-a', '--mqtt-password', help="MQTT broker password")
   parser.add_argument('-H', '--dump1090-host', help="dump1090 hostname", default='127.0.0.1')
-  parser.add_argument('-P', '--dump1090-port', type=int, help="dump1090 port number", default=30003)
+  parser.add_argument('-P', '--dump1090-port', type=int, help="dump1090 port number (default 30003)", default=30003)
   parser.add_argument('-v', '--verbose',  action="store_true", help="Verbose output")
   parser.add_argument('-bdb', '--basestationdb', help="BaseStation SQLite DB (download from http://planebase.biz/bstnsqb)", nargs='?')
-  parser.add_argument('-pdb', '--planedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db", nargs='?')
+  parser.add_argument('-mdb', '--myplanedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db", nargs='?')
 
   args = parser.parse_args()
 
