@@ -359,8 +359,8 @@ def main():
   parser.add_argument('-H', '--dump1090-host', help="dump1090 hostname", default='127.0.0.1')
   parser.add_argument('-P', '--dump1090-port', type=int, help="dump1090 port number (default 30003)", default=30003)
   parser.add_argument('-v', '--verbose',  action="store_true", help="Verbose output")
-  parser.add_argument('-bdb', '--basestationdb', help="BaseStation SQLite DB (download from http://planebase.biz/bstnsqb)", nargs='?')
-  parser.add_argument('-mdb', '--myplanedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db", nargs='?')
+  parser.add_argument('-bdb', '--basestationdb', help="BaseStation SQLite DB (download from http://planebase.biz/bstnsqb)")
+  parser.add_argument('-mdb', '--myplanedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db")
 
   args = parser.parse_args()
 
