@@ -44,8 +44,9 @@ def imageSearch(searchTerm, minWidth = 0):
 				('DNT', '1')
 				 ]
 
-    proxy = urllib2.ProxyHandler({'http': '127.0.0.1:8888'})
-    fetcher = urllib2.build_opener(proxy)
+    if 0: # Add proxy for debugging
+        proxy = urllib2.ProxyHandler({'http': '127.0.0.1:8888'})
+        fetcher = urllib2.build_opener(proxy)
     fetcher.addheaders = headers
 
     log.debug(">>> Googeling '%s'" % searchTerm)
@@ -81,14 +82,18 @@ def imageSearch(searchTerm, minWidth = 0):
                 fileName, fileExtension = os.path.splitext(url)
                 if fileExtension != ".svg" and fileExtension != ".gif":
                     log.debug("%d x %d (%.2f) - %s" % (width, height, aspectRatio, url))
-#                    break
                     log.debug("Fetching %s" % url)
-                    opener = urllib2.build_opener()
-                    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                    fetcher = urllib2.build_opener()
+                    fetcher.addheaders = headers
                     counter = 3
                     while counter > 0:
                         try:
-                            data = cStringIO.StringIO(opener.open(url, timeout = 10).read())
+                            f = fetcher.open(url, timeout = 10)
+                            data = f.read()
+                            if f.info().get('Content-Encoding') == 'gzip':
+                                buf = StringIO(data)
+                                f = gzip.GzipFile(fileobj=buf)
+                                data = f.read()
                             return (url, data)
                         except socket.timeout, e:
                             # For Python 2.7
