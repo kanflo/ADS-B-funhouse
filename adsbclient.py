@@ -142,7 +142,7 @@ class Observation(object):
 
 
   def dump(self):
-    log.debug("> %s %s - %s %s, trk:%s spd:%s alt:%s %s, %s" % (self.icao24, self.callsign, self.operator, self.type, self.track, self.groundSpeed, self.altitude, self.lat, self.lon))
+    log.debug("> %s %s - %s %s (%s), trk:%s spd:%s alt:%s %s, %s" % (self.icao24, self.callsign, self.operator, self.type, self.registration, self.track, self.groundSpeed, self.altitude, self.lat, self.lon))
 
    
   def dict(self):
