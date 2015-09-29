@@ -5,7 +5,7 @@ This is a collection of Python scripts for playing with [ADS-B](https://en.wikip
 
 ## adsbclient.py
 
-This is yet another ADS-B decoder written in Python. It feeds off port 30003 on your dump1090 receiver and is invoked using:
+This is yet another ADS-B decoder written in Python. It feeds off port 30003 on your dump1090 receiver and publishes each message to your MQTT broker. It is invoked using:
 
 `% adsbclient.py -m <dump1090 host> -H <MQTT host> -r <radar name> -pdb PlaneBase.sqb`
 
@@ -31,17 +31,57 @@ The aircraft's operator, type and registration are not available in the ADS-B da
 
 The following arguments are supported by adsbclient.py:
 
-| Key          |  Description |
-| ------------ | ------------- |
-| --help       | well...
-| --radar-name RADAR_NAME   | name of radar, used as topic string /adsb/RADAR_NAME/json
-| --mqtt-host HOST | MQTT broker hostname
-| --mqtt-port PORT | MQTT broker port number (default 1883)
+| Key                  | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| --help               | well...
+| --radar-name NAME    | name of radar, used as topic string /adsb/NAME/json
+| --mqtt-host HOST     | MQTT broker hostname
+| --mqtt-port PORT     | MQTT broker port number (default 1883)
 | --dump1090-host HOST | dump1090 hostname
 | --dump1090-port PORT | dump1090 port number (default 30003)
-| --verbose | Verbose output
-| --basestationdb DB | BaseStation SQLite DB 
-| --myplanedb DB | Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db
+| --verbose            | Verbose output
+| --basestationdb DB   | BaseStation SQLite DB 
+| --myplanedb DB       | Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from the BaseStation db
+
+## proxclient.py
+
+This script subscribes to the JSON radar data from `adsbclient.py` and calculates the distance to the nearest aircraft using your location and makes a Google image search for an image of the aircraft.
+
+`% proxclient.py -m <MQTT host> -l <your latitude> -L <your longitude> --imagedb planeimgs.sqb`
+
+The default publish topic is `/adsb/<prox name>/json` and the JSON data contains the following fields:
+
+| Key          |  Description                         | Sample data
+| ------------ | ------------------------------------ | -----------
+| icao24       | ICAO24 designator                    | "40688E"
+| loggedDate   | Local timestamp                      | "2015-09-08 13:36:50.732000"
+| time         | Local UNIX timestamp                 | 1441712210
+| callsign     | Flight's callsign                    | "BAW18"
+| operator     | Airline                              | "British Airways"
+| type         | Aircraft type                        | "Airbus A320"
+| image        | URL to image of aircraft             | "http://..."
+| bearing      | Bearing from receiver [degrees]      | 74
+| distance     | Distance from receiver [km]          | 9.408453
+| vspeed       | Vertical climb/descend rate [ft/min] | 0
+| speed        | Ground speed [knots]                 | 518
+| altitude     | Altitude [feet]                      | 40000
+| heading      | Heading [degrees]                    | 240
+| lon          | Longitude                            | 13.50045
+| lat          | Latitude                             | 55.6902
+
+The following arguments are supported by proxclient.py:
+
+| Key                  | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| --help               | well...
+| --prox NAME          | name of proxradar, used as topic string /adsb/NAME/json
+| --mqtt-host HOST     | MQTT broker hostname
+| --mqtt-port PORT     | MQTT broker port number (default 1883)
+| --dump1090-host HOST | dump1090 hostname
+| --dump1090-port PORT | dump1090 port number (default 30003)
+| --lat, --lon         | Your location on planet Earth
+| --verbose            | Verbose output
+| --imagedb DB         | An SQLite DB where the URLs to aircraft images are stored locally
 
 -
 Released under the MIT license. Have fun!
