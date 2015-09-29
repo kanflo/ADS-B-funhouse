@@ -30,7 +30,7 @@ import gzip
 
 log = logging.getLogger(__name__)
 
-# Perform a Goolge Image search for 'searchTerm' and return an one with
+# Perform a Goolge Image search for 'searchTerm' and return an image with
 # width minWidth and aspect ratio between 1.3 and 1.55
 # Returns (urlString, imageData) or (None, None) in case of en error
 def imageSearch(searchTerm, minWidth = 0):
@@ -47,6 +47,8 @@ def imageSearch(searchTerm, minWidth = 0):
     if 0: # Add proxy for debugging
         proxy = urllib2.ProxyHandler({'http': '127.0.0.1:8888'})
         fetcher = urllib2.build_opener(proxy)
+    else:
+        fetcher = urllib2.build_opener()
     fetcher.addheaders = headers
 
     log.debug(">>> Googeling '%s'" % searchTerm)
@@ -54,12 +56,14 @@ def imageSearch(searchTerm, minWidth = 0):
 
     while startIndex < 25:
         searchUrl = "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + searchTerm + "&start=%d" % (startIndex)
-#        print searchUrl
         try:
             f = fetcher.open(searchUrl, timeout = 10)
         except UnicodeEncodeError, e:
             log.critical("Google UnicodeEncode error: %s" % (e))
             log.critical("searchTerm : '%s'" % (searchTerm))
+            return (None, None)
+        except urllib2.error, e: # [Errno 61] Connection refused>
+            log.critical("Google error: %s" % (e))
             return (None, None)
 
         data = f.read()
@@ -69,11 +73,11 @@ def imageSearch(searchTerm, minWidth = 0):
             data = f.read()
 
         j = json.loads(data)
-#        print j
+        if not len(j['responseData']['results']):
+            return (None, None)
         count = len(j['responseData']['results'])
         startIndex += count
         for i in range(0, count):
-    #        print j['responseData']['results'][i]
             url = j['responseData']['results'][i]['unescapedUrl']
             height = float(j['responseData']['results'][i]['height'])
             width = float(j['responseData']['results'][i]['width'])
