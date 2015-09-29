@@ -83,6 +83,7 @@ class Observation(object):
     self.lon = sbs1Message.lon
     self.verticalRate = sbs1Message.verticalRate
     self.operator = None
+    self.registration = None
     self.type = None
     self.lost = False
     self.updated = True
