@@ -186,7 +186,7 @@ def proxyCheck(mosq, data):
     data["image"] = gCurImage
     if trackingICAO24 == icao24:
       if lost:
-        log.debug("Lost%s", icao24)
+        log.debug("Lost %s", icao24)
         trackingICAO24 = None
         minTrackingDistance = 999999
         sendLost(mosq, data)
