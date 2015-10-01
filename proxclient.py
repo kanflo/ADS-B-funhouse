@@ -243,17 +243,15 @@ def mqttThread():
   global gImageDB
   if args.imagedb:
     gImageDB = planeimg.ImageDB(args.imagedb)
-  try:
-    mqttc.loop_forever()
-    gQuitting = True
-    log.debug("MQTT thread exiting")
-    gQuitting = True
-  except Exception as e:
-    log.error("MQTT thread got exception: %s" % (e))
-    print traceback.format_exc()
-    gQuitting = True
-    log.info("MQTT disconnect")
-    mqttc.disconnect();
+  while not gQuitting:
+    try:
+      mqttc.loop_forever()
+      log.debug("MQTT thread exiting")
+    except Exception as e:
+      log.error("MQTT thread got exception: %s" % (e))
+      print traceback.format_exc()
+      log.info("MQTT disconnect")
+      mqttc.disconnect();
 
 def mqttConnect():
   global mqttc
