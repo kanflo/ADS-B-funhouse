@@ -27,7 +27,9 @@ The MQTT publish topic is `/adsb/<radar name>/json` and the JSON data contains t
 | lat          | Latitude                                  | 55.29126
 | verticalRate | Vertical climb/descend rate [ft/min]      | 2240
 
-The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. On excellent source is [PlaneBaseNG](http://planebase.biz) and can be downloaded [here](http://planebase.biz/bstnsqb). If you often see aircrafts that are not found in PlaneBase.sqb you can add them manually to your own database and tell adsbclient.py to search it using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
+The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. One excellent source is [PlaneBaseNG](http://planebase.biz) with about 147k aircrafts and can be downloaded [here](http://planebase.biz/bstnsqb). Another source is [Virtual Radar Server](http://www.virtualradarserver.co.uk/Files/BaseStation.zip) with ~77k aircrafts, mainly UK ones.
+
+If you often see aircrafts that are not found in the above databases you can add them manually to your own database and tell adsbclient.py to search it too using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
 
 The following arguments are supported by adsbclient.py:
 
