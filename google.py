@@ -62,7 +62,7 @@ def imageSearch(searchTerm, minWidth = 0):
             log.critical("Google UnicodeEncode error: %s" % (e))
             log.critical("searchTerm : '%s'" % (searchTerm))
             return (None, None)
-        except urllib2.error, e: # [Errno 61] Connection refused>
+        except urllib2.URLError as e: # [Errno 61] Connection refused>
             log.critical("Google error: %s" % (e))
             return (None, None)
 
@@ -72,10 +72,16 @@ def imageSearch(searchTerm, minWidth = 0):
             f = gzip.GzipFile(fileobj=buf)
             data = f.read()
 
-        j = json.loads(data)
-        if not len(j['responseData']['results']):
+        try:
+            j = json.loads(data)
+            if not len(j['responseData']['results']):
+                return (None, None)
+            count = len(j['responseData']['results'])
+        except Exception as e:
+            log.error("Exception caught : %s" % (e))
+            log.error("google data : '%s'" % (data))
             return (None, None)
-        count = len(j['responseData']['results'])
+
         startIndex += count
         for i in range(0, count):
             url = j['responseData']['results'][i]['unescapedUrl']
