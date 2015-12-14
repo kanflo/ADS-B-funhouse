@@ -46,7 +46,8 @@ import traceback
 import math
 import signal
 import random
-import google
+import bing
+import bingconfig
 import planeimg
 
 max_receiver_distance = 374000 # Meters
@@ -148,6 +149,7 @@ def proxyCheck(mosq, data):
   global max_receiver_distance
   global minTrackingDistance
   global trackingICAO24
+  global args
   global gImageDB
   global gCurImage
 
@@ -175,11 +177,16 @@ def proxyCheck(mosq, data):
         planeimage = gImageDB.find(trackingICAO24)
         if planeimage:
           gCurImage = planeimage.image
-        else:
+        elif data and data["operator"] and data["type"] and data["registration"]:
           searchTerm = "%s %s %s" % (data["operator"], data["type"], data["registration"])
-          (url, imageData) = google.imageSearch(searchTerm, 800)
-          if url and data:
-            gCurImage = url
+
+          if args.no_images:
+            imageUrls = None
+          else:
+            imageUrls = bing.imageSearch(searchTerm, {"minWidth":1024, "minHeight":768})
+
+          if imageUrls and data:
+            gCurImage = imageUrls[0]
             log.debug("Added url %s for %s", gCurImage, icao24)
             gImageDB.add(trackingICAO24, gCurImage)
 
@@ -313,8 +320,15 @@ def main():
   parser.add_argument('-l', '--lat', type=float, help="Latitude of radar")
   parser.add_argument('-L', '--lon', type=float, help="Longitude of radar")
   parser.add_argument('-v', '--verbose', dest='verbose',  action="store_true", help="Verbose output")
+  parser.add_argument('-g', '--no-images', dest='no_images',  action="store_true", help="Skipp image search")
 
   args = parser.parse_args()
+  if bingconfig.key == None:
+    if not args.no_images:
+      print "You really need to specify a Bing API key or --no-images"
+      sys.exit(1)
+
+  bing.setKey(bingconfig.key)
 
   if not args.lat and not args.lon:
     print "You really need to tell me where you are located (--lat and --lon)"
