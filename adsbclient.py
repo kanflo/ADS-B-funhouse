@@ -94,7 +94,7 @@ class Observation(object):
         self.type = plane.type
         self.operator = plane.operator
         break
-    if not plane:
+      else:
         log.debug("icao24 %s not found in any data base" % (self.icao24))
 
   def update(self, sbs1Message):
@@ -126,7 +126,7 @@ class Observation(object):
         self.type = plane.type
         self.operator = plane.operator
         break
-    if not plane:
+      else:
         log.debug("icao24 %s not found in any data base" % (self.icao24))
 
 
