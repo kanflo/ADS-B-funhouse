@@ -33,11 +33,7 @@ import paho.mqtt.client as mosquitto
 import Queue
 import time
 from threading import *
-try:
-  import remotelogger
-except ImportError:
-  print "remotelogger module not found, install from github.com/kanflo/python-remotelogger"
-  sys.exit(1)
+import remotelogger
 import logging, sys
 import socket
 import calendar, datetime
@@ -198,20 +194,20 @@ def mqttConnect():
     log.info("MQTT wierdness")
 
 
-def loggingInit(level):
+def loggingInit(level, log_host):
     log = logging.getLogger(__name__)
 
     # Initialize remote logging
     logger = logging.getLogger()
     logger.setLevel(level)
-    remotelogger.init(logger = logger, appName = "airlinecol", subSystem = None, host = "midi.local", level = logging.DEBUG)
+    if log_host != None:
+        remotelogger.init(logger = logger, appName = "airlinecol", subSystem = None, host = log_host, level = logging.DEBUG)
 
-    if 1:
-        # Log to stdout
-        ch = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
+    # Log to stdout
+    ch = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
 def signal_handler(signal, frame):
     global gQuitting
@@ -230,7 +226,8 @@ def main():
     parser.add_option('-p', '--mqtt-port', dest='mqtt_port', type="int", help="MQTT broker port number", default=1883)
     parser.add_option('-t', '--mqtt-topic', dest='mqtt_topic', help="MQTT color topic", default="airlinecolor")
     parser.add_option('-d', '--max-distance', dest='max_distance', type="float", help="Max distance to light the LED (km)", default=10.0)
-    parser.add_option('-v', '--verbose', dest='verbose',  action="store_true", help="Verbose output")
+    parser.add_option('-v', '--verbose', dest='verbose', action="store_true", help="Verbose output")
+    parser.add_option('-l', '--logger', dest='log_host', help="Remote log host")
 
     (options, args) = parser.parse_args()
 
@@ -246,9 +243,9 @@ def main():
     try:
         signal.signal(signal.SIGINT, signal_handler)
         if options.verbose:
-            loggingInit(logging.DEBUG)
+            loggingInit(logging.DEBUG, options.log_host)
         else:
-            loggingInit(logging.INFO)
+            loggingInit(logging.INFO, options.log_host)
         log.info("Client started")
 
         mqttConnect()
@@ -260,4 +257,5 @@ def main():
     mqttc.disconnect();
 
 # Ye ol main
-main()
+if __name__ == "__main__":
+    main()
