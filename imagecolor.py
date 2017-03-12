@@ -32,9 +32,8 @@ log = logging.getLogger(__name__)
 try:
     from PIL import Image
 except ImportError:
-    print "PIL module not found, install using 'sudo pip install PIL'"
-    print "If that fails, try 'sudo pip install PIL --allow-external PIL --allow-unverified PIL'"
-    sys.exit(1)
+    print "Pillow module not found, install using 'sudo pip install Pillow'"
+    exit(1)
 
 
 def getImage(searchTerm):
