@@ -42,7 +42,7 @@ import traceback
 import math
 import signal
 import random
-from optparse import OptionParser
+import argparse
 import bing
 import bingconfig
 
@@ -78,7 +78,7 @@ def mqttOnDisconnect(mosq, obj, rc):
         log.info("MQTT connected")
 
 def mqttOnMessage(mosq, obj, msg):
-    global options
+    global args
     global gCurrentColor
     try:
         data = json.loads(msg.payload)
@@ -107,17 +107,17 @@ def mqttOnMessage(mosq, obj, msg):
                 log.error("getColor failed  %s" % (e))
                 print traceback.format_exc()
                 return
-        if distance > options.max_distance or not color:
+        if distance > args.max_distance or not color:
             color = (0, 0, 0)
         else:
-            color_0 = int(color[0] * (1 - (distance / options.max_distance)))
-            color_1 = int(color[1] * (1 - (distance / options.max_distance)))
-            color_2 = int(color[2] * (1 - (distance / options.max_distance)))
+            color_0 = int(color[0] * (1 - (distance / args.max_distance)))
+            color_1 = int(color[1] * (1 - (distance / args.max_distance)))
+            color_2 = int(color[2] * (1 - (distance / args.max_distance)))
             color = (color_0, color_1, color_2)
         if color != gCurrentColor:
             log.debug("New color is %02x%02x%02x" % (color[0], color[1], color[2]))
             # This is a bit lazy, I know...
-            cmd = "mosquitto_pub -h %s -t %s -m \"#%02x%02x%02x\"" % (options.mqtt_host, options.mqtt_topic, color[0], color[1], color[2])
+            cmd = "mosquitto_pub -h %s -t %s -m \"#%02x%02x%02x\"" % (args.mqtt_host, args.mqtt_topic, color[0], color[1], color[2])
             os.system(cmd)
             gCurrentColor = color
 
@@ -153,7 +153,7 @@ def mqttThread():
 
 def mqttConnect():
     global mqttc
-    global options
+    global args
     try:
         # If you want to use a specific client id, use
         # mqttc = mosquitto.Mosquitto("client-id")
@@ -167,7 +167,7 @@ def mqttConnect():
         mqttc.on_subscribe = mqttOnSubscribe
 
         #mqttc.on_log = mqttOnLog # Uncomment to enable debug messages
-        mqttc.connect(options.mqtt_host, options.mqtt_port, 60)
+        mqttc.connect(args.mqtt_host, args.mqtt_port, 60)
         if 1:
             log.info("MQTT thread started")
             try:
@@ -188,7 +188,7 @@ def mqttConnect():
             thread.start()
         return True
     except socket.error, e:
-        log.error("Failed to connect MQTT broker at %s:%d" % (options.mqtt_host, options.mqtt_port))
+        log.error("Failed to connect MQTT broker at %s:%d" % (args.mqtt_host, args.mqtt_port))
         return False
 
     log.info("MQTT wierdness")
@@ -220,16 +220,16 @@ def signal_handler(signal, frame):
 def main():
     global gQuitting
     global mqttc
-    global options
-    parser = OptionParser()
-    parser.add_option('-m', '--mqtt-host', dest='mqtt_host', help="MQTT broker hostname", default='127.0.0.1')
-    parser.add_option('-p', '--mqtt-port', dest='mqtt_port', type="int", help="MQTT broker port number", default=1883)
-    parser.add_option('-t', '--mqtt-topic', dest='mqtt_topic', help="MQTT color topic", default="airlinecolor")
-    parser.add_option('-d', '--max-distance', dest='max_distance', type="float", help="Max distance to light the LED (km)", default=10.0)
-    parser.add_option('-v', '--verbose', dest='verbose', action="store_true", help="Verbose output")
-    parser.add_option('-l', '--logger', dest='log_host', help="Remote log host")
+    global args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mqtt-host', dest='mqtt_host', help="MQTT broker hostname", default='127.0.0.1')
+    parser.add_argument('-p', '--mqtt-port', dest='mqtt_port', type=int, help="MQTT broker port number", default=1883)
+    parser.add_argument('-t', '--mqtt-topic', dest='mqtt_topic', help="MQTT color topic", default="airlinecolor")
+    parser.add_argument('-d', '--max-distance', dest='max_distance', type=float, help="Max distance to light the LED (km)", default=10.0)
+    parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", help="Verbose output")
+    parser.add_argument('-l', '--logger', dest='log_host', help="Remote log host")
 
-    (options, args) = parser.parse_args()
+    args = parser.parse_args()
 
     if bingconfig.key == None:
         print "You really need to specify a Bing API key, see bingconfig.py"
@@ -242,10 +242,10 @@ def main():
 
     try:
         signal.signal(signal.SIGINT, signal_handler)
-        if options.verbose:
-            loggingInit(logging.DEBUG, options.log_host)
+        if args.verbose:
+            loggingInit(logging.DEBUG, args.log_host)
         else:
-            loggingInit(logging.INFO, options.log_host)
+            loggingInit(logging.INFO, args.log_host)
         log.info("Client started")
 
         mqttConnect()
