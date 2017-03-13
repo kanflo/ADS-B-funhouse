@@ -21,4 +21,4 @@ key = None
 # When you have added your key, type the following command so you never
 # accidentaly push your key to Github:
 #
-#  git update-index --assume-unchanged FILENAME_TO_IGNORE bingconfig.py
+#  git update-index --assume-unchanged bingconfig.py bingconfig.py
