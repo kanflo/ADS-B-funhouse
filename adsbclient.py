@@ -62,9 +62,9 @@ class DictDiffer(object):
     self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
     self.intersect = self.set_current.intersection(self.set_past)
   def added(self):
-    return self.set_current - self.intersect 
+    return self.set_current - self.intersect
   def removed(self):
-    return self.set_past - self.intersect 
+    return self.set_past - self.intersect
   def changed(self):
     return set(o for o in self.intersect if self.past_dict[o] != self.current_dict[o])
   def unchanged(self):
@@ -145,7 +145,7 @@ class Observation(object):
   def dump(self):
     log.debug("> %s %s - %s %s (%s), trk:%s spd:%s alt:%s %s, %s" % (self.icao24, self.callsign, self.operator, self.type, self.registration, self.track, self.groundSpeed, self.altitude, self.lat, self.lon))
 
-   
+
   def dict(self):
     d =  dict(self.__dict__)
     if d["verticalRate"] == None:
@@ -254,13 +254,14 @@ def mqttConnect():
 
   log.info("MQTT wierdness")
 
-def loggingInit(level):
+def loggingInit(level, log_host):
   log = logging.getLogger(__name__)
 
   # Initialize remote logging
   logger = logging.getLogger()
   logger.setLevel(level)
-  remotelogger.init(logger = logger, appName = "adsbclient", subSystem = None, host = "midi.local", level = logging.DEBUG)
+  if log_host != None:
+    remotelogger.init(logger = logger, appName = "adsbclient", subSystem = None, host = log_host, level = logging.DEBUG)
 
   if 1:
     # Log to stdout
@@ -362,14 +363,15 @@ def main():
   parser.add_argument('-v', '--verbose',  action="store_true", help="Verbose output")
   parser.add_argument('-bdb', '--basestationdb', help="BaseStation SQLite DB (download from http://planebase.biz/bstnsqb)")
   parser.add_argument('-mdb', '--myplanedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db")
+  parser.add_argument('-l', '--logger', dest='log_host', help="Remote log host")
 
   args = parser.parse_args()
 
   signal.signal(signal.SIGINT, signal_handler)
   if args.verbose:
-    loggingInit(logging.DEBUG)
+    loggingInit(logging.DEBUG, args.log_host)
   else:
-    loggingInit(logging.INFO)
+    loggingInit(logging.INFO, args.log_host)
 
   mqttConnect()
   adsbConnect()

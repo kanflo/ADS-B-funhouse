@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2015 Johan Kanflo (github.com/kanflo)
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
 # "Software"), to deal in the Software without restriction, including
@@ -10,10 +10,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -71,25 +71,25 @@ def receiverBearing(lat, lon):
   global args
   lat1, lon1 = args.lat, args.lon
   lat2, lon2 = lat, lon
- 
+
   rlat1 = math.radians(lat1)
   rlat2 = math.radians(lat2)
   rlon1 = math.radians(lon1)
   rlon2 = math.radians(lon2)
   dlon = math.radians(lon2-lon1)
- 
+
   b = math.atan2(math.sin(dlon)*math.cos(rlat2),math.cos(rlat1)*math.sin(rlat2)-math.sin(rlat1)*math.cos(rlat2)*math.cos(dlon)) # bearing calc
   bd = math.degrees(b)
   br,bn = divmod(bd+360,360) # the bearing remainder and final bearing
-  
+
   return bn
 
 def latLonDistance(lat1, lon1, lat2, lon2):
   R = 6371 # Radius of the earth in km
   dLat = deg2rad(lat2-lat1)  # deg2rad below
-  dLon = deg2rad(lon2-lon1) 
+  dLon = deg2rad(lon2-lon1)
   a = math.sin(dLat/2) * math.sin(dLat/2) + math.cos(deg2rad(lat1)) * math.cos(deg2rad(lat2)) * math.sin(dLon/2) * math.sin(dLon/2)
-  c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)) 
+  c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
   d = R * c * 1000 #  Distance in m
   return d
 
@@ -282,15 +282,14 @@ def mqttConnect():
   log.debug("MQTT wierdness")
 
 
-def loggingInit(level):
-  global args
+def loggingInit(level, log_host):
   log = logging.getLogger(__name__)
 
   # Initialize remote logging
   logger = logging.getLogger()
   logger.setLevel(level)
-  if args.rlog_host:
-    remotelogger.init(logger = logger, appName = "radarprox", subSystem = None, host = args.rlog_host, level = level)
+  if log_host != None:
+    remotelogger.init(logger = logger, appName = "radarprox", subSystem = None, host = log_host, level = level)
 
   # Log to stdout
   ch = logging.StreamHandler(sys.stdout)
@@ -321,6 +320,7 @@ def main():
   parser.add_argument('-L', '--lon', type=float, help="Longitude of radar")
   parser.add_argument('-v', '--verbose', dest='verbose',  action="store_true", help="Verbose output")
   parser.add_argument('-g', '--no-images', dest='no_images',  action="store_true", help="Skipp image search")
+  parser.add_argument('-o', '--logger', dest='log_host', help="Remote log host")
 
   args = parser.parse_args()
   if bingconfig.key == None:
@@ -339,9 +339,9 @@ def main():
   try:
     signal.signal(signal.SIGINT, signal_handler)
     if args.verbose:
-      loggingInit(logging.DEBUG)
+      loggingInit(logging.DEBUG, args.log_host)
     else:
-      loggingInit(logging.INFO)
+      loggingInit(logging.INFO, args.log_host)
     log.info("Proxclient started")
     mqttConnect()
     while not gQuitting:
