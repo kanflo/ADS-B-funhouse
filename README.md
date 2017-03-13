@@ -31,19 +31,19 @@ The aircraft's operator, type and registration are not available in the ADS-B da
 
 If you often see aircrafts that are not found in the above databases you can add them manually to your own database and tell adsbclient.py to search it too using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
 
-The following arguments are supported:
+The following arguments are supported by adsbclient.py:
 
 | Key                  | Description                                                       |
 | -------------------- | ----------------------------------------------------------------- |
 | --help               | well...
-| --radar-name    | name of radar, used as topic string /adsb/NAME/json
-| --mqtt-host     | MQTT broker hostname
-| --mqtt-port     | MQTT broker port number (default 1883)
-| --dump1090-host | dump1090 hostname
-| --dump1090-port | dump1090 port number (default 30003)
-| --verbose       | Verbose output
-| --basestationdb | BaseStation SQLite DB 
-| --myplanedb     | Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from the BaseStation db
+| --radar-name NAME    | name of radar, used as topic string /adsb/NAME/json
+| --mqtt-host HOST     | MQTT broker hostname
+| --mqtt-port PORT     | MQTT broker port number (default 1883)
+| --dump1090-host HOST | dump1090 hostname
+| --dump1090-port PORT | dump1090 port number (default 30003)
+| --verbose            | Verbose output
+| --basestationdb DB   | BaseStation SQLite DB 
+| --myplanedb DB       | Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from the BaseStation db
 
 ## proxclient.py
 
@@ -71,16 +71,16 @@ The default publish topic is `/adsb/<prox name>/json` and the JSON data contains
 | lon          | Longitude                            | 13.50045
 | lat          | Latitude                             | 55.6902
 
-The following arguments are supported:
+The following arguments are supported by proxclient.py:
 
 | Key                  | Description                                                       |
 | -------------------- | ----------------------------------------------------------------- |
 | --help               | well...
 | --prox NAME          | name of proxradar, used as topic string /adsb/NAME/json
-| --mqtt-host     | MQTT broker hostname
-| --mqtt-port     | MQTT broker port number (default 1883)
-| --dump1090-host | dump1090 hostname
-| --dump1090-port | dump1090 port number (default 30003)
+| --mqtt-host HOST     | MQTT broker hostname
+| --mqtt-port PORT     | MQTT broker port number (default 1883)
+| --dump1090-host HOST | dump1090 hostname
+| --dump1090-port PORT | dump1090 port number (default 30003)
 | --lat, --lon         | Your location on planet Earth
 | --verbose            | Verbose output
 | --imagedb DB         | An SQLite DB where the URLs to aircraft images are stored locally
