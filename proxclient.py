@@ -225,11 +225,13 @@ def mqttOnDisconnect(mosq, obj, rc):
     log.debug("MQTT connected")
 
 def mqttOnMessage(mosq, obj, msg):
+  data = None
   try:
     data = json.loads(msg.payload)
   except Exception as e:
     log.error("JSON load failed for '%s'", msg.payload)
-  proxyCheck(mosq, data)
+  if data != None:
+    proxyCheck(mosq, data)
 
 
 def mqttOnPublish(mosq, obj, mid):
@@ -319,7 +321,7 @@ def main():
   parser.add_argument('-l', '--lat', type=float, help="Latitude of radar")
   parser.add_argument('-L', '--lon', type=float, help="Longitude of radar")
   parser.add_argument('-v', '--verbose', dest='verbose',  action="store_true", help="Verbose output")
-  parser.add_argument('-g', '--no-images', dest='no_images',  action="store_true", help="Skipp image search")
+  parser.add_argument('-g', '--no-images', dest='no_images',  action="store_true", help="Skip image search")
   parser.add_argument('-o', '--logger', dest='log_host', help="Remote log host")
 
   args = parser.parse_args()
