@@ -183,7 +183,7 @@ def cleanObservations(observations, timeoutSec, mqttc):
 
   return observations
 
-def mqttOnConnect(mosq, obj, rc):
+def mqttOnConnect(client, userdata, flags, rc):
   log.info("MQTT Connect: %s" % (str(rc)))
 
 def mqttOnDisconnect(mosq, obj, rc):
