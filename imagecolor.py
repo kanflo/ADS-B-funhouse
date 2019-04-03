@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 try:
     from PIL import Image
 except ImportError:
-    print "Pillow module not found, install using 'sudo pip install Pillow'"
+    print("Pillow module not found, install using 'sudo pip install Pillow'")
     exit(1)
 
 
@@ -42,7 +42,7 @@ def getImage(searchTerm):
 
     try:
         imageUrls = bing.imageSearch(searchTerm, {"minWidth":400, "minHeight":400})
-    except Exception, e:
+    except Exception as e:
         log.error("Bing exception error: %s" % (e))
         return None
 
@@ -58,15 +58,15 @@ def getImage(searchTerm):
                 file = cStringIO.StringIO(opener.open(url, timeout = 10).read())
                 im = Image.open(file)
                 return (im, url)
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 log.error("HTTP error: %s for %s" % (e, url))
                 log.error("searchTerm : '%s'" % (searchTerm))
                 pass
-            except UnicodeEncodeError, e:
+            except UnicodeEncodeError as e:
                 log.error("UnicodeEncodeError error: %s" % (e))
                 log.error("searchTerm : '%s'" % (searchTerm))
                 pass
-            except urllib2.URLError, e:
+            except urllib2.URLError as e:
                 log.error("URLError error: %s for %s" % (e, url))
                 log.error("searchTerm : '%s'" % (searchTerm))
                 pass
@@ -96,7 +96,7 @@ def getProminentColor(searchTerm):
                             histogram[px] = 1
                         else:
                             histogram[px] = histogram[px] + 1
-    except AttributeError, e:
+    except AttributeError as e:
         pass # Grayscale image?
 
     px_max = (0, 0, 0)

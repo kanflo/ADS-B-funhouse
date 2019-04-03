@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2016 Johan Kanflo (github.com/kanflo)
@@ -44,7 +44,6 @@ import signal
 import random
 import argparse
 import bing
-import bingconfig
 
 gQuitting = False
 gCurrentColor = ()
@@ -84,7 +83,7 @@ def mqttOnMessage(mosq, obj, msg):
         data = json.loads(msg.payload)
     except Exception as e:
         log.error("JSON load failed for '%s' : %s" % (msg.payload, e))
-        print traceback.format_exc()
+        print(traceback.format_exc())
         return
 
     if data["operator"] and data["distance"]:
@@ -105,7 +104,7 @@ def mqttOnMessage(mosq, obj, msg):
                 color = imagecolor.getColor(airline)
             except Exception as e:
                 log.error("getColor failed  %s" % (e))
-                print traceback.format_exc()
+                print(traceback.format_exc())
                 return
         if distance > args.max_distance or not color:
             color = (0, 0, 0)
@@ -145,7 +144,7 @@ def mqttThread():
         gQuitting = True
     except Exception as e:
         log.error("MQTT thread got exception: %s" % (e))
-        print traceback.format_exc()
+        print(traceback.format_exc())
 #        gQuitting = True
 #        log.info("MQTT disconnect")
 #        mqttc.disconnect();
@@ -177,7 +176,7 @@ def mqttConnect():
                 log.info("MQTT thread exiting")
             except Exception as e:
                 log.error("MQTT thread got exception: %s" % (e))
-                print traceback.format_exc()
+                print(traceback.format_exc())
         #        gQuitting = True
         #        log.info("MQTT disconnect")
         #        mqttc.disconnect();
@@ -187,7 +186,7 @@ def mqttConnect():
             thread.daemon = True
             thread.start()
         return True
-    except socket.error, e:
+    except socket.error as e:
         log.error("Failed to connect MQTT broker at %s:%d" % (args.mqtt_host, args.mqtt_port))
         return False
 
@@ -212,7 +211,7 @@ def loggingInit(level, log_host):
 def signal_handler(signal, frame):
     global gQuitting
     global mqttc
-    print "ctrl-c"
+    print("ctrl-c")
     gQuitting = True
     mqttc.disconnect();
     sys.exit(0)
@@ -231,11 +230,6 @@ def main():
 
     args = parser.parse_args()
 
-    if bingconfig.key == None:
-        print "You really need to specify a Bing API key, see bingconfig.py"
-        sys.exit(1)
-    bing.setKey(bingconfig.key)
-
     signal.signal(signal.SIGINT, signal_handler)
 
     imagecolor.loadColorData()
@@ -251,7 +245,7 @@ def main():
         mqttConnect()
     except Exception as e:
         log.error("Mainloop got exception: %s" % (e))
-        print traceback.format_exc()
+        print(traceback.format_exc())
         gQuitting = True
     log.debug("MQTT disconnect")
     mqttc.disconnect();

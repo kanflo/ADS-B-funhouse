@@ -10,7 +10,7 @@ import sys
 try:
   import dateutil.parser
 except ImportError:
-  print "dateutil module not installed, try 'sudo pip install python-dateutil'"
+  print("dateutil module not installed, try 'sudo pip install python-dateutil'")
   sys.exit(1)
 
 import logging
@@ -61,6 +61,7 @@ class SBS1Message (object):
 
   """Create an SBS1Message object from the string sbs1Message"""
   def __init__(self, sbs1Message):
+    sbs1Message = sbs1Message.decode('utf-8')
     parts = sbs1Message.split(',');
     self.isValid = True # Always an optimist
     self.messageType = self.parseString(parts, 0)
@@ -91,46 +92,46 @@ class SBS1Message (object):
 
   def dump(self):
     if self.messageType == None:
-      print "Illegal message"
+      print("Illegal message")
       return
     else:
-      print "messageType      : %s" % self.messageType
+      print("messageType      : %s" % self.messageType)
     if self.transmissionType != None:
-      print "transmissionType : %s" % self.transmissionType
+      print("transmissionType : %s" % self.transmissionType)
     if self.sessionID != None:
-      print "sessionID        : %s" % self.sessionID
+      print("sessionID        : %s" % self.sessionID)
     if self.aircraftID != None:
-      print "aircraftID       : %s" % self.aircraftID
+      print("aircraftID       : %s" % self.aircraftID)
     if self.icao24 != None:
-      print "icao24           : %s" % self.icao24
+      print("icao24           : %s" % self.icao24)
     if self.flightID != None:
-      print "flightID         : %s" % self.flightID
+      print("flightID         : %s" % self.flightID)
     if self.generatedDate != None:
-      print "generatedDate    : %s" % self.generatedDate
+      print("generatedDate    : %s" % self.generatedDate)
     if self.loggedDate != None:
-      print "loggedDate       : %s" % self.loggedDate
+      print("loggedDate       : %s" % self.loggedDate)
     if self.callsign != None:
-      print "callsign         : %s" % self.callsign
+      print("callsign         : %s" % self.callsign)
     if self.altitude != None:
-      print "altitude         : %s" % self.altitude
+      print("altitude         : %s" % self.altitude)
     if self.groundSpeed != None:
-      print "groundSpeed      : %s" % self.groundSpeed
+      print("groundSpeed      : %s" % self.groundSpeed)
     if self.track != None:
-      print "track            : %s" % self.track
+      print("track            : %s" % self.track)
     if self.lat != None and self.lon != None:
-      print "lat, lon         : %s, %s" % (self.lat, self.lon)
+      print("lat, lon         : %s, %s" % (self.lat, self.lon))
     if self.verticalRate != None:
-      print "verticalRate     : %s" % self.verticalRate
+      print("verticalRate     : %s" % self.verticalRate)
     if self.squawk != None:
-      print "squawk           : %s" % self.squawk
+      print("squawk           : %s" % self.squawk)
     if self.alert != None:
-      print "alert            : %s" % self.alert
+      print("alert            : %s" % self.alert)
     if self.emergency != None:
-      print "emergency        : %s" % self.emergency
+      print("emergency        : %s" % self.emergency)
     if self.spi != None:
-      print "spi              : %s" % self.spi
+      print("spi              : %s" % self.spi)
     if self.onGround != None:
-      print "onGround         : %s" % self.onGround
+      print("onGround         : %s" % self.onGround)
 
   """Parse string at given index in array
   Return string or None if string is empty or index is out of bounds"""

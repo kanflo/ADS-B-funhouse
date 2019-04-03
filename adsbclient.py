@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) 2015 Johan Kanflo (github.com/kanflo)
 #
@@ -24,19 +24,14 @@
 import socket, select
 import paho.mqtt.client as mosquitto
 import argparse
-from threading import *
+import threading
 import json
 import sbs1
 import icao24
 import sys, logging
-try:
-  import remotelogger
-except ImportError:
-  print "remotelogger module not found, install from github.com/kanflo/python-remotelogger"
-  sys.exit(1)
+import remotelogger
 import datetime, calendar
 import signal
-import thread, threading
 import random
 import time
 import re
@@ -224,7 +219,7 @@ def mqttThread():
     gQuitting = True
   except Exception as e:
     log.error("MQTT thread got exception: %s" % (e))
-    print traceback.format_exc()
+    print(traceback.format_exc())
     gQuitting = True
     log.info("MQTT disconnect")
     mqttc.disconnect();
@@ -245,11 +240,11 @@ def mqttConnect():
 
     mqttc.connect(args.mqtt_host, args.mqtt_port, 60)
 
-    thread = Thread(target = mqttThread)
+    thread = threading.Thread(target = mqttThread)
     thread.setDaemon(True)
     thread.start()
     return True
-  except socket.error, e:
+  except socket.error as e:
     return False
 
   log.info("MQTT wierdness")
@@ -320,11 +315,11 @@ def adsbThread():
         nextClean = datetime.datetime.utcnow() + datetime.timedelta(seconds=cleanIntervalSec)
       try:
         data = sock.recv(512)
-      except socket.error, e:
+      except socket.error as e:
         err = e.args[0]
         if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
           logging.critical("No data available")
-          print ''
+          print('')
           sock = None
           time.sleep(10)
         else:
@@ -345,7 +340,7 @@ def adsbThread():
 
 
 def adsbConnect():
-    thread = Thread(target = adsbThread)
+    thread = threading.Thread(target = adsbThread)
     thread.setDaemon(True)
     thread.start()
 

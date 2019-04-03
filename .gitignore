@@ -2,3 +2,4 @@ bingconfig.py
 *.sqb
 *.db
 *.pyc
+logocolors.json

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Copyright (c) 2015 Johan Kanflo (github.com/kanflo)
@@ -28,17 +28,12 @@
 #
 
 import paho.mqtt.client as mosquitto
-import Queue
 import time
 import argparse
 from threading import *
 import logging
 import sys
-try:
-  import remotelogger
-except ImportError:
-  print "remotelogger module not found, install from github.com/kanflo/python-remotelogger"
-  sys.exit(1)
+import remotelogger
 import socket
 import calendar, datetime
 import json
@@ -47,7 +42,6 @@ import math
 import signal
 import random
 import bing
-import bingconfig
 import planeimg
 
 max_receiver_distance = 374000 # Meters
@@ -210,10 +204,10 @@ def proxyCheck(mosq, data):
       max_receiver_distance = distance
 
 
-def mqttOnConnect(mosq, obj, rc):
+def mqttOnConnect(client, userdata, flags, rc):
   global args
-  mosq.subscribe(args.radar, 0)
-  log.debug("MQTT Connect: %s" % (str(rc)))
+  client.subscribe(args.radar, 0)
+  log.info("MQTT Connect: %s" % (str(rc)))
 
 def mqttOnDisconnect(mosq, obj, rc):
   global gQuitting
@@ -240,11 +234,12 @@ def mqttOnPublish(mosq, obj, mid):
 
 
 def mqttOnSubscribe(mosq, obj, mid, granted_qos):
+  log.info("MQTT subscribed")
   log.debug("Subscribed")
 
 
 def mqttOnLog(mosq, obj, level, string):
-  log.debug("log:"+string)
+  log.info("log:"+string)
 
 
 def mqttThread():
@@ -258,7 +253,7 @@ def mqttThread():
       log.debug("MQTT thread exiting")
     except Exception as e:
       log.error("MQTT thread got exception: %s" % (e))
-      print traceback.format_exc()
+      print(traceback.format_exc())
       log.info("MQTT disconnect")
       mqttc.disconnect();
 
@@ -278,7 +273,7 @@ def mqttConnect():
     thread = Thread(target = mqttThread)
     thread.start()
     return True
-  except socket.error, e:
+  except socket.error as e:
     return False
 
   log.debug("MQTT wierdness")
@@ -302,7 +297,7 @@ def loggingInit(level, log_host):
 def signal_handler(signal, frame):
   global gQuitting
   global mqttc
-  print "ctrl-c"
+  print("ctrl-c")
   gQuitting = True
   mqttc.disconnect();
   sys.exit(0)
@@ -325,18 +320,12 @@ def main():
   parser.add_argument('-o', '--logger', dest='log_host', help="Remote log host")
 
   args = parser.parse_args()
-  if bingconfig.key == None:
-    if not args.no_images:
-      print "You really need to specify a Bing API key or --no-images"
-      sys.exit(1)
-
-  bing.setKey(bingconfig.key)
 
   if not args.lat and not args.lon:
-    print "You really need to tell me where you are located (--lat and --lon)"
+    print("You really need to tell me where you are located (--lat and --lon)")
     sys.exit(1)
   if not args.imagedb:
-    print "You need to tell me where to store aircraft image info (--imagedb DB)"
+    print("You need to tell me where to store aircraft image info (--imagedb DB)")
     sys.exit(1)
   try:
     signal.signal(signal.SIGINT, signal_handler)
@@ -346,11 +335,12 @@ def main():
       loggingInit(logging.INFO, args.log_host)
     log.info("Proxclient started")
     mqttConnect()
+    log.info("MQTT connect done")
     while not gQuitting:
       time.sleep(1)
   except Exception as e:
     log.error("Mainloop got exception: %s" % (e))
-    print traceback.format_exc()
+    print(traceback.format_exc())
     gQuitting = True
   log.info("MQTT disconnect")
   mqttc.disconnect();

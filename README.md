@@ -27,9 +27,9 @@ The MQTT publish topic is `/adsb/<radar name>/json` and the JSON data contains t
 | lat          | Latitude                                  | 55.29126
 | verticalRate | Vertical climb/descend rate [ft/min]      | 2240
 
-The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. One excellent source is [PlaneBaseNG](http://planebase.biz) with about 147k aircraft and can be downloaded [here](http://planebase.biz/bstnsqb). Another source is [Virtual Radar Server](http://www.virtualradarserver.co.uk/Files/BaseStation.zip) with ~77k aircraft, mainly UK ones.
+The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. One excellent source is [PlaneBaseNG](http://planebase.biz) with about 147k aircrafts and can be downloaded [here](http://planebase.biz/bstnsqb). Another source is [Virtual Radar Server](http://www.virtualradarserver.co.uk/Files/BaseStation.zip) with ~77k aircrafts, mainly UK ones.
 
-If you often see aircraft that are not found in the above databases you can add them manually to your own database and tell adsbclient.py to search it too using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
+If you often see aircrafts that are not found in the above databases you can add them manually to your own database and tell adsbclient.py to search it too using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
 
 The following arguments are supported by adsbclient.py:
 
@@ -47,7 +47,7 @@ The following arguments are supported by adsbclient.py:
 
 ## proxclient.py
 
-This script subscribes to the JSON radar data from `adsbclient.py` and calculates the distance to the nearest aircraft using your location and makes an Bing image search for an image of the aircraft (you will need a Bing API key for this, see `bingconfig.py`).
+This script subscribes to the JSON radar data from `adsbclient.py` and calculates the distance to the nearest aircraft using your location and makes an Bing image search for an image of the aircraft.
 
 `% proxclient.py -m <MQTT host> -l <your latitude> -L <your longitude> --imagedb planeimgs.sqb`
 
@@ -104,7 +104,7 @@ The following arguments are supported by:
 | --help      | well...
 | --mqtt-host | MQTT broker hostname
 | --mqtt-port | MQTT broker port number (default 1883)
-| --distance  | max distance in kilometers, the color will be black (#000000) for aircraft beyond this distance
+| --distance  | max distance in kilometers, the color will be black (#000000) for aircrafts beyond this distance
 | --topic     | the topic to post color data to
 | --verbose   | Verbose output
 
