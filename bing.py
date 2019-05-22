@@ -24,16 +24,11 @@ import os, urllib.request, re, urllib.parse
 
 # Bing image search for python
 
-#urlopenheader={ 'User-Agent' : 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0'}
-headers = { 'User-Agent' : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Safari/605.1.15'}
-
-# Set api key
-def setKey(key):
-    pass
+headers = { 'User-Agent' : 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0'}
 
 # Search for 'keywords' and return image URLs in a list or None if, well, none
 # are found or an error occurred
-def imageSearch(keywords, options = None):
+def imageSearch(keywords):
     filters = '+filterui:imagesize-large'
     current = 1
     url = 'https://www.bing.com/images/async?q=' + urllib.parse.quote_plus(keywords) + '&first=' + str(current) + '&count=35&adlt=0&qft=' + filters

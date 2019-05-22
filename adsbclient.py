@@ -22,13 +22,11 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import socket, select
-import paho.mqtt.client as mosquitto
 import argparse
 import threading
 import json
-import sbs1
-import icao24
-import sys, logging
+import sys
+import logging
 import remotelogger
 import datetime, calendar
 import signal
@@ -36,12 +34,18 @@ import random
 import time
 import re
 import errno
-
-gQuitting = False
-gPlaneDBs = []
+import sbs1
+import planedb
+import mqtt_wrapper
 
 log = logging.getLogger(__name__)
 
+"""
+A Python client listening to a dump1090 receiver and posting the MODE-S data
+as JSON to an MQTT topic of your choice. If you have a running instance of
+planedb-serv.py running, information about aircraft type, manufacturer,
+registration and operator will be appended.
+"""
 
 # http://stackoverflow.com/questions/1165352/fast-comparison-between-two-python-dictionary
 class DictDiffer(object):
@@ -82,15 +86,14 @@ class Observation(object):
     self.type = None
     self.lost = False
     self.updated = True
-    for db in gPlaneDBs:
-      plane = db.find(self.icao24)
+    if args.pdb_host:
+      plane = planedb.lookup_aircraft(self.icao24)
       if plane:
-        self.registration = plane.registration
-        self.type = plane.type
-        self.operator = plane.operator
-        break
+        self.registration = plane['registration']
+        self.type = plane['manufacturer'] + " " + plane['model']
+        self.operator = plane['operator']
       else:
-        log.debug("icao24 %s not found in any data base" % (self.icao24))
+        log.debug("icao24 %s not found in the database" % (self.icao24))
 
   def update(self, sbs1Message):
     self.loggedDate = sbs1Message.loggedDate
@@ -114,13 +117,12 @@ class Observation(object):
     if not self.verticalRate:
       self.verticalRate = 0
 
-    for db in gPlaneDBs:
-      plane = db.find(self.icao24)
+    if args.pdb_host:
+      plane = planedb.lookup_aircraft(self.icao24)
       if plane:
-        self.registration = plane.registration
-        self.type = plane.type
-        self.operator = plane.operator
-        break
+        self.registration = plane['registration']
+        self.type = plane['manufacturer'] + " " + plane['model']
+        self.operator = plane['operator']
       else:
         log.debug("icao24 %s not found in any data base" % (self.icao24))
 
@@ -154,8 +156,11 @@ class Observation(object):
     d["loggedDate"] = "%s" % (d["loggedDate"])
     return d
 
-
-def cleanObservations(observations, timeoutSec, mqttc):
+"""
+Clean obsercations that are timeoutSec old. Post farewall ('lost = True') to
+MQTT topic.
+"""
+def cleanObservations(observations, timeoutSec, bridge):
   global args
   removed = []
   now = datetime.datetime.now()
@@ -172,82 +177,11 @@ def cleanObservations(observations, timeoutSec, mqttc):
     observations[icao24].updated = True
     d = observations[icao24].dict()
     d["lost"] = True
-    mqttc.publish("/adsb/%s/json" % args.radar_name, json.dumps(d), 0, False) # Retain)
+    bridge.publish("/adsb/%s/json" % args.radar_name, json.dumps(d))
     del observations[icao24]
     log.debug("%s lost", icao24)
 
   return observations
-
-def mqttOnConnect(client, userdata, flags, rc):
-  log.info("MQTT Connect: %s" % (str(rc)))
-
-def mqttOnDisconnect(mosq, obj, rc):
-  global gQuitting
-  log.info("MQTT Disconnect: %s" % (str(rc)))
-  if not gQuitting:
-    while not mqttConnect():
-      time.sleep(10)
-      log.info("Attempting MQTT reconnect")
-    log.info("MQTT connected")
-
-def mqttOnMessage(mosq, obj, msg):
-  try:
-    data = json.loads(msg.payload)
-  except Exception as e:
-    log.error("JSON load failed for '%s'", msg.payload)
-  proxyCheck(mosq, data)
-
-
-def mqttOnPublish(mosq, obj, mid):
-    pass
-
-
-def mqttOnSubscribe(mosq, obj, mid, granted_qos):
-  log.debug("Subscribed")
-
-
-def mqttOnLog(mosq, obj, level, string):
-  log.debug("log:"+string)
-
-
-def mqttThread():
-  global gQuitting
-  try:
-    mqttc.loop_forever()
-    gQuitting = True
-    log.info("MQTT thread exiting")
-    gQuitting = True
-  except Exception as e:
-    log.error("MQTT thread got exception: %s" % (e))
-    print(traceback.format_exc())
-    gQuitting = True
-    log.info("MQTT disconnect")
-    mqttc.disconnect();
-
-def mqttConnect():
-  global args
-  global mqttc
-  try:
-    mqttc = mosquitto.Mosquitto("adsbclient-%d" % (random.randint(0, 65535)))
-    mqttc.on_message = mqttOnMessage
-    mqttc.on_connect = mqttOnConnect
-    mqttc.on_disconnect = mqttOnDisconnect
-    mqttc.on_publish = mqttOnPublish
-    mqttc.on_subscribe = mqttOnSubscribe
-
-    if args.mqtt_user and args.mqtt_password:
-      mqttc.username_pw_set(args.mqtt_user, password = args.mqtt_password)
-
-    mqttc.connect(args.mqtt_host, args.mqtt_port, 60)
-
-    thread = threading.Thread(target = mqttThread)
-    thread.setDaemon(True)
-    thread.start()
-    return True
-  except socket.error as e:
-    return False
-
-  log.info("MQTT wierdness")
 
 def loggingInit(level, log_host):
   log = logging.getLogger(__name__)
@@ -258,43 +192,31 @@ def loggingInit(level, log_host):
   if log_host != None:
     remotelogger.init(logger = logger, appName = "adsbclient", subSystem = None, host = log_host, level = logging.DEBUG)
 
-  if 1:
-    # Log to stdout
-    ch = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-def signal_handler(signal, frame):
-  global gQuitting
-  global mqttc
-  log.info("Quitting due to ctrl-c")
-  gQuitting = True
-  mqttc.disconnect();
-  sys.exit(0)
+  # Log to stdout
+  ch = logging.StreamHandler(sys.stdout)
+  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  ch.setFormatter(formatter)
+  logger.addHandler(ch)
 
 
-def adsbThread():
-  global gQuitting
-  global mqttc
+def mqttThread(bridge):
+  while True:
+      bridge.looping()
+
+
+def adsbThread(bridge):
   global args
   sock = None
   connWarn = False
   observations = {}
-  socketTimeoutSec = 5
+  socketTimeoutSec = 60
   cleanIntervalSec = 5
   cleanTimeoutSec = 30 # Clean observations when we have no updates in this time
-
-  if args.basestationdb:
-    gPlaneDBs.append(icao24.PlaneDB(args.basestationdb))
-  if args.myplanedb:
-    gPlaneDBs.append(icao24.PlaneDB(args.myplanedb))
-
 
   lastClean = datetime.datetime.utcnow()
   nextClean = datetime.datetime.utcnow() + datetime.timedelta(seconds=cleanIntervalSec)
 
-  while 1:
+  while True:
     if sock == None:
       try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -310,7 +232,7 @@ def adsbThread():
         time.sleep(10)
     else:
       if datetime.datetime.utcnow() > nextClean:
-        observations = cleanObservations(observations, cleanTimeoutSec, mqttc)
+        observations = cleanObservations(observations, cleanTimeoutSec, bridge)
         lastClean = datetime.datetime.utcnow()
         nextClean = datetime.datetime.utcnow() + datetime.timedelta(seconds=cleanIntervalSec)
       try:
@@ -319,7 +241,6 @@ def adsbThread():
         err = e.args[0]
         if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
           logging.critical("No data available")
-          print('')
           sock = None
           time.sleep(10)
         else:
@@ -334,19 +255,14 @@ def adsbThread():
           else:
             observations[m.icao24] = Observation(m)
           if observations[m.icao24].isPresentable() and observations[m.icao24].updated:
-            mqttc.publish("/adsb/%s/json" % args.radar_name, json.dumps(observations[m.icao24].dict()), 0, False) # Retain)
+            bridge.publish("/adsb/%s/json" % args.radar_name, json.dumps(observations[m.icao24].dict()))
             observations[m.icao24].updated = False
             observations[m.icao24].dump()
 
 
-def adsbConnect():
-    thread = threading.Thread(target = adsbThread)
-    thread.setDaemon(True)
-    thread.start()
-
 def main():
   global args
-  parser = argparse.ArgumentParser(description='This is my description')
+  parser = argparse.ArgumentParser(description='A Dump 1090 to MQTT bridge')
 
   parser.add_argument('-r', '--radar-name', help="name of radar, used as topic string /adsb/<radar>/json", default='radar')
   parser.add_argument('-m', '--mqtt-host', help="MQTT broker hostname", default='127.0.0.1')
@@ -355,21 +271,27 @@ def main():
   parser.add_argument('-a', '--mqtt-password', help="MQTT broker password")
   parser.add_argument('-H', '--dump1090-host', help="dump1090 hostname", default='127.0.0.1')
   parser.add_argument('-P', '--dump1090-port', type=int, help="dump1090 port number (default 30003)", default=30003)
+  parser.add_argument('-pdb', '--planedb', dest='pdb_host', help="Plane database host")
   parser.add_argument('-v', '--verbose',  action="store_true", help="Verbose output")
-  parser.add_argument('-bdb', '--basestationdb', help="BaseStation SQLite DB (download from http://planebase.biz/bstnsqb)")
-  parser.add_argument('-mdb', '--myplanedb', help="Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from BaseStation db")
   parser.add_argument('-l', '--logger', dest='log_host', help="Remote log host")
 
   args = parser.parse_args()
 
-  signal.signal(signal.SIGINT, signal_handler)
   if args.verbose:
     loggingInit(logging.DEBUG, args.log_host)
   else:
     loggingInit(logging.INFO, args.log_host)
 
-  mqttConnect()
-  adsbConnect()
+  if args.pdb_host:
+    planedb.init(args.pdb_host)
+
+  bridge = mqtt_wrapper.bridge(host = args.mqtt_host, port = args.mqtt_port, client_id = "adsbclient-%d" % (random.randint(0, 65535)), user_id = args.mqtt_user, password = args.mqtt_password)
+  thread = threading.Thread(target = mqttThread, args = (bridge,))
+  thread.setDaemon(True)
+  thread.start()
+  thread = threading.Thread(target = adsbThread, args = (bridge,))
+  thread.setDaemon(True)
+  thread.start()
 
   numThreads = threading.active_count()
   while numThreads == threading.active_count():
