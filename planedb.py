@@ -24,9 +24,54 @@
 import requests as req
 import json
 import ast
+import time
 
 hostname = None
 port = 31541
+
+# To keep the load down on the planedb server, we cache lookups and refresh
+# every cache_max_age seconds. If entry has not been hit for that time we
+# evict it from the cache to make sure we don't end up caching the world.
+cache_max_age = 10
+
+# Clean the cache every cache_clean_interval seconds
+cache_clean_interval = 30
+
+last_clean = time.time()
+
+# Dicionaries keyed on "icao24" containing "fetched_ts", "hit_ts" and "data" (data may be 'False')
+cache = {}
+
+def cache_clean():
+    global last_clean
+    if time.time() - last_clean > cache_clean_interval:
+        global cache
+        victims = []
+        for icao24 in cache:
+            if time.time() - cache[icao24]["hit_ts"] > cache_max_age:
+                victims.append(icao24)
+        for icao24 in victims:
+            del cache[icao24]
+        last_clean = time.time()
+
+def cache_lookup(icao24):
+    """Lookup icao24 in cache
+       If found, return the data that may be 'False' if we know the server
+       knows nothing about the aircraft. Return None in case of cache misses
+    """
+    cache_clean()
+    global cache
+    if icao24 in cache:
+        if time.time() - cache[icao24]["fetched_ts"] < cache_max_age:
+            cache[icao24]["hit_ts"] = time.time()
+            return cache[icao24]["data"]
+        else:
+            del cache[icao24]
+    return None
+
+def cache_add(icao24, data):
+    global cache
+    cache[icao24] = {"fetched_ts" : time.time(), "hit_ts" : time.time(), "data" : data}
 
 def init(_hostname, _port = 31541):
     global hostname
@@ -35,12 +80,18 @@ def init(_hostname, _port = 31541):
     port = _port
 
 def lookup_aircraft(icao24):
+    data = cache_lookup(icao24)
+    if data != None:
+        return data
     try:
         resp = req.get("http://%s:%d/aircraft/%s" % (hostname, port, icao24))
         if resp.status_code == 200:
-            return ast.literal_eval(resp.text) # Works for single quotes
+            data = ast.literal_eval(resp.text) # Works for single quotes
+            cache_add(icao24, data)
+            return data
     except req.exceptions.ConnectionError:
         pass
+    cache_add(icao24, False)
     return False
 
 def update_aircraft(icao24, data):
@@ -126,9 +177,10 @@ def dump(o):
     else:
         print("Not found")
 
-# Use as a CLU tool
+# Use as a CLI tool
 if __name__ == "__main__":
     import sys
+    # @todo: set using switches
     init("localhost")
     if len(sys.argv) < 2:
         print("Usage: %s [-q icao24] [-r callsign] [-o airline] [-a airport] [-i icao24 [ -m <manufacturer> -t <type> -o <operator> -r <registration> -s <data source> -I <image url> ] ]" % sys.argv[0])
