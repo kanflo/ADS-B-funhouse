@@ -25,8 +25,9 @@ import requests as req
 import json
 import ast
 import time
+import os
 
-hostname = None
+hostname = "localhost"
 port = 31541
 
 # To keep the load down on the planedb server, we cache lookups and refresh
@@ -42,7 +43,7 @@ last_clean = time.time()
 # Dicionaries keyed on "icao24" containing "fetched_ts", "hit_ts" and "data" (data may be 'False')
 cache = {}
 
-def cache_clean():
+def _cache_clean():
     global last_clean
     if time.time() - last_clean > cache_clean_interval:
         global cache
@@ -54,12 +55,12 @@ def cache_clean():
             del cache[icao24]
         last_clean = time.time()
 
-def cache_lookup(icao24):
+def _cache_lookup(icao24):
     """Lookup icao24 in cache
        If found, return the data that may be 'False' if we know the server
        knows nothing about the aircraft. Return None in case of cache misses
     """
-    cache_clean()
+    _cache_clean()
     global cache
     if icao24 in cache:
         if time.time() - cache[icao24]["fetched_ts"] < cache_max_age:
@@ -69,7 +70,7 @@ def cache_lookup(icao24):
             del cache[icao24]
     return None
 
-def cache_add(icao24, data):
+def _cache_add(icao24, data):
     global cache
     cache[icao24] = {"fetched_ts" : time.time(), "hit_ts" : time.time(), "data" : data}
 
@@ -80,22 +81,21 @@ def init(_hostname, _port = 31541):
     port = _port
 
 def lookup_aircraft(icao24):
-    data = cache_lookup(icao24)
+    data = _cache_lookup(icao24)
     if data != None:
         return data
     try:
         resp = req.get("http://%s:%d/aircraft/%s" % (hostname, port, icao24))
         if resp.status_code == 200:
             data = ast.literal_eval(resp.text) # Works for single quotes
-            cache_add(icao24, data)
+            _cache_add(icao24, data)
             return data
     except req.exceptions.ConnectionError:
         pass
-    cache_add(icao24, False)
+    _cache_add(icao24, False)
     return False
 
 def update_aircraft(icao24, data):
-    global hostname
     url = "http://%s:%d/aircraft/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -115,7 +115,6 @@ def lookup_airport(icao24):
     return False
 
 def update_airport(icao24, data):
-    global hostname
     url = "http://%s:%d/airport/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -136,7 +135,6 @@ def lookup_airline(icao24):
     return False
 
 def update_airline(icao24, data):
-    global hostname
     url = "http://%s:%d/airline/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -156,7 +154,6 @@ def lookup_route(callsign):
     return False
 
 def update_route(callsign, data):
-    global hostname
     url = "http://%s:%d/route/%s" % (hostname, port, callsign)
     try:
         resp = req.post(url, data = data)
@@ -169,21 +166,79 @@ def update_route(callsign, data):
         pass
     return False
 
+def add_imagecheck(icao24):
+    url = "http://%s:%d/imagecheck/%s" % (hostname, port, icao24)
+    try:
+        resp = req.post(url)
+        if resp.status_code == 200:
+            return resp.text == "OK"
+    except req.exceptions.ConnectionError:
+        pass
+    return False
 
-def dump(o):
-    if o:
-        for k in o:
-            print("%20s : %s" % (k, o[k]))
-    else:
-        print("Not found")
+def delete_imagecheck(icao24):
+    url = "http://%s:%d/imagecheck/%s" % (hostname, port, icao24)
+    try:
+        resp = req.delete(url)
+        if resp.status_code == 200:
+            return resp.text == "OK"
+    except req.exceptions.ConnectionError:
+        pass
+    return False
+
+def get_imagechecks():
+    url = "http://%s:%d/imagecheck" % (hostname, port)
+    try:
+        resp = req.get(url)
+        if resp.status_code == 200:
+            return json.loads(resp.text)
+    except req.exceptions.ConnectionError:
+        pass
+    return []
+
 
 # Use as a CLI tool
 if __name__ == "__main__":
     import sys
-    # @todo: set using switches
-    init("localhost")
+    def dump(o):
+        if o:
+            for k in o:
+                print("%20s : %s" % (k, o[k]))
+        else:
+            print("Not found")
+
+    def google(icao24):
+        import os, sys, subprocess
+        plane = lookup_aircraft(sys.argv[2])
+        if not "registration" in plane:
+            print("No registration found for icao24 %s" % (icao24))
+        else:
+            url = "https://www.google.com/search?tbm=isch&q=%s" % plane["registration"]
+
+            if sys.platform=='win32':
+                print("win")
+                os.startfile(url)
+            elif sys.platform=='darwin':
+                print("mac")
+                subprocess.Popen(['open', url])
+            else:
+                print("linux?")
+                try:
+                    subprocess.Popen(['xdg-open', url])
+                except OSError:
+                    print("Don't know how to open a URL in this nachine, try %s" % url)
+
+    # @todo: use switches, this is ugly as hell
+
+    if 'PLANESERVER' in os.environ:
+        server = os.environ['PLANESERVER']
+    else:
+        print("You need to set the environment variable PLANESERVER to point to your planeserver.")
+        sys.exit(1)
+
+    init(server)
     if len(sys.argv) < 2:
-        print("Usage: %s [-q icao24] [-r callsign] [-o airline] [-a airport] [-i icao24 [ -m <manufacturer> -t <type> -o <operator> -r <registration> -s <data source> -I <image url> ] ]" % sys.argv[0])
+        print("Usage: %s [-l] [-g icao24] [-c icao24] [-d icao24] [-q icao24] [-r callsign] [-o airline] [-a airport] [-i icao24 [ -m <manufacturer> -t <type> -o <operator> -r <registration> -s <data source> -I <image url> ] ]" % sys.argv[0])
     else:
         if sys.argv[1] == '-o':
             dump(lookup_airline(sys.argv[2]))
@@ -193,6 +248,16 @@ if __name__ == "__main__":
             dump(lookup_route(sys.argv[2]))
         elif sys.argv[1] == '-q':
             dump(lookup_aircraft(sys.argv[2]))
+        elif sys.argv[1] == '-g':
+            google(sys.argv[2])
+        elif sys.argv[1] == '-c':
+            add_imagecheck(sys.argv[2])
+        elif sys.argv[1] == '-d':
+            delete_imagecheck(sys.argv[2])
+        elif sys.argv[1] == '-l':
+            for plane in get_imagechecks():
+                print("%8s https://www.google.com/search?tbm=isch&q=%s" % (plane["icao24"], plane["registration"]))
+
         elif sys.argv[1] == '-i':
             icao24 = sys.argv[2]
             man = None
@@ -216,8 +281,7 @@ if __name__ == "__main__":
                 elif sys.argv[i] == '-I':
                     img = sys.argv[i+1]
                 else:
-                    pass
-                    #print("Unknown switch %s" % sys.argv[i])
+                    print("Unknown switch %s" % sys.argv[i])
 
             plane = {'manufacturer' : man, 'model' : mdl, 'operator' : op, 'registration' : reg, 'image' : img, 'source' : src}
             print(plane)
@@ -225,20 +289,3 @@ if __name__ == "__main__":
                 print("ok")
             else:
                 print("Update failed")
-
-
-"""
-Testing:
-
-curl --request POST 'http://127.0.0.1:31541/info/10' --data 'model=A380&operator=SAS&registration=ABC123&source=stdin'
-curl --request GET http://127.0.0.1:31541/info/10
-curl --request POST 'http://127.0.0.1:31541/info/10' --data 'model=A381'
-curl --request GET http://127.0.0.1:31541/info/10
-curl --request DELETE http://127.0.0.1:31541/info/10
-curl --request POST 'http://127.0.0.1:31541/info/11' --data 'model=A380&operator=SAS&registration=ABC123'
-curl --request GET http://127.0.0.1:31541/image/11
-curl --request POST 'http://127.0.0.1:31541/image/11' --data 'image=http://image.com/plane.jpg'
-curl --request GET http://127.0.0.1:31541/image/11
-curl --request DELETE http://127.0.0.1:31541/image/11
-curl --request GET http://127.0.0.1:31541/image/11
-"""

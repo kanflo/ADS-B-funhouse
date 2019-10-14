@@ -38,6 +38,8 @@ import sys
 import datetime
 import logging
 from logging.handlers import RotatingFileHandler
+import datetime
+import json
 
 app = Flask(__name__)
 
@@ -98,9 +100,14 @@ class Route(BaseModel):
     src_iata = CharField()
     dst_iata = CharField()
 
+# Used as a TODO for planes that got weird images
+class PlaneImageCheck(BaseModel):
+    icao24 = CharField(unique = True)
+    added_on = DateTimeField(default = datetime.datetime.utcnow())
+
 
 db.connect()
-db.create_tables([Plane, Airline, Airport, Route])
+db.create_tables([Plane, Airline, Airport, Route, PlaneImageCheck])
 
 def get_aircraft(icao24):
     icao24 = icao24.lower()
@@ -156,7 +163,6 @@ def update_aircraft(icao24, post_dict):
         print(e)
         return False
 
-
 def delete_aircraft(icao24):
     icao24 = icao24.lower()
     try:
@@ -166,6 +172,58 @@ def delete_aircraft(icao24):
     except IndexError:
         return False
 
+def get_imagechecks():
+    from playhouse.shortcuts import model_to_dict, dict_to_model
+    checks = []
+    try:
+        for check in PlaneImageCheck().select():
+            plane = Plane.get(icao24 = check.icao24)
+            checks.append(model_to_dict(plane))
+    except PlaneImageCheck.DoesNotExist:
+        return None
+    return checks
+
+def add_imagecheck(icao24):
+    icao24 = icao24.lower()
+    try:
+        plane = Plane.get(icao24 = icao24)
+    except Plane.DoesNotExist:
+        return None
+    obj = PlaneImageCheck()
+    obj.icao24 = icao24
+    obj.updated_on = datetime.datetime.utcnow()
+    try:
+        obj.save()
+        return True
+    except KeyError as e:
+        logging.error("Exception occurred", exc_info=True)
+        print(e)
+        return False
+    except IntegrityError as e:
+        return False
+    except OperationalError as e:
+        print("peewee operational error:")
+        print(e)
+        return False
+
+def delete_imagecheck(icao24):
+    icao24 = icao24.lower()
+    try:
+        obj = PlaneImageCheck.get(icao24 = icao24)
+        obj.delete_instance()
+        return True
+    except KeyError as e:
+        logging.error("Exception occurred", exc_info=True)
+        print(e)
+        return False
+    except IntegrityError as e:
+        return False
+    except PlaneImageCheck.DoesNotExist as e:
+        return False
+    except OperationalError as e:
+        print("peewee operational error:")
+        print(e)
+        return False
 
 def get_airport(ica_or_iata):
     ica_or_iata = ica_or_iata.upper()
@@ -385,6 +443,36 @@ def aircraft_info(icao24):
         else:
             abort(404)
 
+# https://stackoverflow.com/questions/56554159/typeerror-object-of-type-datetime-is-not-json-serializable-with-serialize-fu
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, z):
+        if isinstance(z, datetime.datetime):
+            return (str(z))
+        else:
+            return super().default(z)
+
+@app.route("/imagecheck", methods = ['GET'])
+def imagechecks():
+    checks = get_imagechecks()
+    if checks:
+        return json.dumps(checks, ensure_ascii=False, cls=DateTimeEncoder)
+    else:
+        abort(404)
+
+@app.route("/imagecheck/<string:icao24>", methods = ['POST', 'DELETE'])
+def imagecheck(icao24):
+    icao24 = icao24.lower()
+    if request.method == 'POST':
+        if add_imagecheck(icao24):
+            return "OK"
+        else:
+            abort(404)
+    elif request.method == 'DELETE':
+        if delete_imagecheck(icao24):
+            return "OK"
+        else:
+            abort(404)
+
 @app.route("/airport/<string:ica_or_iata>", methods = ['POST', 'GET', 'DELETE'])
 def airport_info(ica_or_iata):
     ica_or_iata = ica_or_iata.upper()
@@ -461,4 +549,4 @@ if __name__ == "__main__":
     handler.setFormatter(log_formatter)
     logger.addHandler(handler)
     logger.setLevel(level)
-    app.run(port = port)
+    app.run(host = '0.0.0.0', port = port)
