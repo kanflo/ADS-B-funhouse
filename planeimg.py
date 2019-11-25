@@ -19,9 +19,14 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import sys
 import sqlite3
 import datetime
-import dateutil.parser
+try:
+    from dateutil.parser import parse
+except ImportError:
+    print('sudo -H pip3 install python-dateutil')
+    sys.exit(1)
 import logging
 
 log = logging.getLogger(__name__)

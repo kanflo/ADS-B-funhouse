@@ -131,6 +131,8 @@ def copyMessage(data):
       j["origin"] = data["origin"]
     if "destination" in data:
       j["destination"] = data["destination"]
+    if "counter" in data:
+      j["counter"] = data["counter"]
     return j
 
 def sendProx(bridge, data):
@@ -225,7 +227,11 @@ def proxyCheck(bridge, data):
           cur_route = None
           cur_icao24 = icao24
         cur_tracking_distance = distance
-        log.info("%s: pos:%2f, %2f @ %dft distance:%d bearing:%d" % (icao24, lat, lon, altitude, distance, bearing))
+        if "counter" in data:
+          counter = data["counter"]
+        else:
+          counter = 0
+        log.info("[%-10s] %s: pos:%2f, %2f @ %dft distance:%d bearing:%d" % (counter, icao24, lat, lon, altitude, distance, bearing))
         if not cur_route:
           route = planedb.lookup_route(data['callsign'])
           if route:

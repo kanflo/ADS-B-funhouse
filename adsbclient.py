@@ -40,6 +40,13 @@ import mqtt_wrapper
 
 log = logging.getLogger(__name__)
 
+msg_counter = 0
+
+def get_counter():
+  global msg_counter
+  msg_counter += 1
+  return msg_counter
+
 """
 A Python client listening to a dump1090 receiver and posting the MODE-S data
 as JSON to an MQTT topic of your choice. If you have a running instance of
@@ -177,31 +184,13 @@ def cleanObservations(observations, timeoutSec, bridge):
     observations[icao24].updated = True
     d = observations[icao24].dict()
     d["lost"] = True
+    d["counter"] = get_counter()
     bridge.publish("/adsb/%s/json" % args.radar_name, json.dumps(d))
+    log.info("Message counter: %s" % (d["counter"]))
     del observations[icao24]
     log.debug("%s lost", icao24)
 
   return observations
-
-def loggingInit(level, log_host):
-  log = logging.getLogger(__name__)
-
-  # Initialize remote logging
-  logger = logging.getLogger()
-  logger.setLevel(level)
-  if log_host != None:
-    remotelogger.init(logger = logger, appName = "adsbclient", subSystem = None, host = log_host, level = logging.DEBUG)
-
-  # Log to stdout
-  ch = logging.StreamHandler(sys.stdout)
-  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-  ch.setFormatter(formatter)
-  logger.addHandler(ch)
-
-
-def mqttThread(bridge):
-  while True:
-      bridge.looping()
 
 
 def adsbThread(bridge):
@@ -255,7 +244,10 @@ def adsbThread(bridge):
           else:
             observations[m.icao24] = Observation(m)
           if observations[m.icao24].isPresentable() and observations[m.icao24].updated:
-            bridge.publish("/adsb/%s/json" % args.radar_name, json.dumps(observations[m.icao24].dict()))
+            temp = observations[m.icao24].dict()
+            temp["counter"] = get_counter()
+            bridge.publish("/adsb/%s/json" % args.radar_name, json.dumps(temp))
+            log.info("Message counter: %s" % (temp["counter"]))
             observations[m.icao24].updated = False
             observations[m.icao24].dump()
 
@@ -277,27 +269,24 @@ def main():
 
   args = parser.parse_args()
 
-  if args.verbose:
-    loggingInit(logging.DEBUG, args.log_host)
-  else:
-    loggingInit(logging.INFO, args.log_host)
+  level = logging.DEBUG if args.verbose else logging.INFO
+  logging.basicConfig(level=level, stream=sys.stdout,
+                      format='%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s',
+                      datefmt='%Y%m%d %H:%M:%S')
+  logging.info("---[ Starting %s ]---------------------------------------------" % sys.argv[0])
 
   if args.pdb_host:
     planedb.init(args.pdb_host)
 
   bridge = mqtt_wrapper.bridge(host = args.mqtt_host, port = args.mqtt_port, client_id = "adsbclient-%d" % (random.randint(0, 65535)), user_id = args.mqtt_user, password = args.mqtt_password)
-  thread = threading.Thread(target = mqttThread, args = (bridge,))
-  thread.setDaemon(True)
-  thread.start()
-  thread = threading.Thread(target = adsbThread, args = (bridge,))
-  thread.setDaemon(True)
-  thread.start()
+  threading.Thread(target = adsbThread, args = (bridge,), daemon = True).start()
 
-  numThreads = threading.active_count()
-  while numThreads == threading.active_count():
-    time.sleep(0.1)
-  log.critical("Exiting")
-
+  while True:
+      bridge.looping()
+      time.sleep(0.25)
 
 # Ye ol main
-main()
+try:
+  main()
+except Exception as e:
+  logging.critical(e, exc_info=True)
