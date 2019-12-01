@@ -200,4 +200,6 @@ class SBS1Message (object):
         d = dateutil.parser.parse("%s %s" % (date, time))
       except ValueError:
         d = None
+      except TypeError:
+        d = None
     return d
