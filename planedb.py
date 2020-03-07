@@ -21,11 +21,13 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+from typing import *
 import requests as req
 import json
 import ast
 import time
 import os
+import logging
 
 hostname = "localhost"
 port = 31541
@@ -33,54 +35,64 @@ port = 31541
 # To keep the load down on the planedb server, we cache lookups and refresh
 # every cache_max_age seconds. If entry has not been hit for that time we
 # evict it from the cache to make sure we don't end up caching the world.
-cache_max_age = 10
+cache_max_age = 120
 
 # Clean the cache every cache_clean_interval seconds
-cache_clean_interval = 30
+cache_clean_interval = 300
 
-last_clean = time.time()
+# Timestamp of last cache clean
+last_cache_clean = time.time()
 
 # Dicionaries keyed on "icao24" containing "fetched_ts", "hit_ts" and "data" (data may be 'False')
-cache = {}
+cache: Dict[str, Dict[str, str]] = {}
 
 def _cache_clean():
-    global last_clean
-    if time.time() - last_clean > cache_clean_interval:
+    global last_cache_clean
+    if time.time() - last_cache_clean > cache_clean_interval:
         global cache
         victims = []
-        for icao24 in cache:
-            if time.time() - cache[icao24]["hit_ts"] > cache_max_age:
-                victims.append(icao24)
-        for icao24 in victims:
-            del cache[icao24]
-        last_clean = time.time()
+        for what in cache:
+            if time.time() - cache[what]["hit_ts"] > cache_max_age:
+                victims.append(what)
+        for what in victims:
+            del cache[what]
+        last_cache_clean = time.time()
 
-def _cache_lookup(icao24):
-    """Lookup icao24 in cache
-       If found, return the data that may be 'False' if we know the server
-       knows nothing about the aircraft. Return None in case of cache misses
+def _cache_lookup(what: str) -> Union[Dict, None]:
+    """Lookup 'what' in cache
+       If found, return the data that may be 'False' if we have looked up
+       'what' before but found nothing. Return None in case of cache misses
+
+    Arguments:
+        what {str} -- What to look for ;)
+
+    Returns:
+        Union[Dict, None] -- Dict describing what we found or None if data not in cache
     """
     _cache_clean()
     global cache
-    if icao24 in cache:
-        if time.time() - cache[icao24]["fetched_ts"] < cache_max_age:
-            cache[icao24]["hit_ts"] = time.time()
-            return cache[icao24]["data"]
+    if what in cache:
+        t = time.time()
+        item_age = t - cache[what]["fetched_ts"]
+        if item_age < cache_max_age:
+            cache[what]["hit_ts"] = time.time()
+            return cache[what]["data"]
         else:
-            del cache[icao24]
-    return None
+            del cache[what]
+    return None 
 
-def _cache_add(icao24, data):
+def _cache_add(icao24: str, data: Dict):
     global cache
     cache[icao24] = {"fetched_ts" : time.time(), "hit_ts" : time.time(), "data" : data}
 
-def init(_hostname, _port = 31541):
+def init(_hostname: str, _port: int = 31541):
     global hostname
     global port
     hostname = _hostname
     port = _port
 
-def lookup_aircraft(icao24):
+def lookup_aircraft(icao24: str):
+    _cache = cache
     data = _cache_lookup(icao24)
     if data != None:
         return data
@@ -95,7 +107,7 @@ def lookup_aircraft(icao24):
     _cache_add(icao24, False)
     return False
 
-def update_aircraft(icao24, data):
+def update_aircraft(icao24: str, data: Dict):
     url = "http://%s:%d/aircraft/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -105,16 +117,22 @@ def update_aircraft(icao24, data):
         pass
     return False
 
-def lookup_airport(icao24):
+def lookup_airport(icao24: str):
+    _cache = cache
+    data = _cache_lookup(icao24)
+    if data != None:
+        return data
     try:
         resp = req.get("http://%s:%d/airport/%s" % (hostname, port, icao24))
         if resp.status_code == 200:
+            _cache_add(icao24, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
         pass
+    _cache_add(icao24, False)
     return False
 
-def update_airport(icao24, data):
+def update_airport(icao24: str, data: Dict):
     url = "http://%s:%d/airport/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -124,17 +142,23 @@ def update_airport(icao24, data):
         pass
     return False
 
-def lookup_airline(icao24):
+def lookup_airline(icao24: str):
+    _cache = cache
+    data = _cache_lookup(icao24)
+    if data != None:
+        return data
     try:
         resp = req.get("http://%s:%d/airline/%s" % (hostname, port, icao24))
         print(resp.text)
         if resp.status_code == 200:
+            _cache_add(icao24, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
         pass
+    _cache_add(icao24, False)
     return False
 
-def update_airline(icao24, data):
+def update_airline(icao24: str, data: Dict):
     url = "http://%s:%d/airline/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
@@ -144,16 +168,22 @@ def update_airline(icao24, data):
         pass
     return False
 
-def lookup_route(callsign):
+def lookup_route(callsign: str):
+    _cache = cache
+    data = _cache_lookup(callsign)
+    if data != None:
+        return data
     try:
         resp = req.get("http://%s:%d/route/%s" % (hostname, port, callsign))
         if resp.status_code == 200:
+            _cache_add(callsign, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
         pass
+    _cache_add(callsign, False)
     return False
 
-def update_route(callsign, data):
+def update_route(callsign: str, data: Dict):
     url = "http://%s:%d/route/%s" % (hostname, port, callsign)
     try:
         resp = req.post(url, data = data)
@@ -166,7 +196,7 @@ def update_route(callsign, data):
         pass
     return False
 
-def add_imagecheck(icao24):
+def add_imagecheck(icao24: str):
     url = "http://%s:%d/imagecheck/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url)
@@ -176,7 +206,7 @@ def add_imagecheck(icao24):
         pass
     return False
 
-def delete_imagecheck(icao24):
+def delete_imagecheck(icao24: str):
     url = "http://%s:%d/imagecheck/%s" % (hostname, port, icao24)
     try:
         resp = req.delete(url)
@@ -186,7 +216,7 @@ def delete_imagecheck(icao24):
         pass
     return False
 
-def get_imagechecks():
+def get_imagechecks() -> List:
     url = "http://%s:%d/imagecheck" % (hostname, port)
     try:
         resp = req.get(url)
@@ -267,7 +297,6 @@ if __name__ == "__main__":
             src = None
             img = None
             for i in range(3, len(sys.argv) - 1):
-                print(sys.argv[i])
                 if sys.argv[i] == '-m':
                     man = sys.argv[i+1]
                 elif sys.argv[i] == '-t':
@@ -280,8 +309,6 @@ if __name__ == "__main__":
                     src = sys.argv[i+1]
                 elif sys.argv[i] == '-I':
                     img = sys.argv[i+1]
-                else:
-                    print("Unknown switch %s" % sys.argv[i])
 
             plane = {'manufacturer' : man, 'model' : mdl, 'operator' : op, 'registration' : reg, 'image' : img, 'source' : src}
             print(plane)
