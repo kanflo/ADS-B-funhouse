@@ -1,91 +1,58 @@
 **ADS-B funhouse**
 ==========
 
-This is a collection of Python scripts for playing with [ADS-B](https://en.wikipedia.org/wiki/Automatic_dependent_surveillance-broadcast) data from [dump1090](https://github.com/antirez/dump1090). You will need an [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr) receiver to join the fun.  You will also need the Paho-MQTT client for your installed version of Python (usually installed with the command `pip install paho-mqtt`).
+This is a collection of Python scripts for playing with [ADS-B](https://en.wikipedia.org/wiki/Automatic_dependent_surveillance-broadcast) data from [dump1090](https://github.com/antirez/dump1090). You will need an [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr) receiver to join the fun.
 
-## adsbclient.py
+## flighttracker.py
 
-This is yet another ADS-B decoder written in Python. It feeds off port 30003 on your dump1090 receiver and publishes each message to your MQTT broker. It is invoked using:
+This script reads SBS1 messages from your dump1090 receiver and tracks the nearest aircraft. It publishes information about the flight on MQTT once every second with an increasing frequency if the aircraft is closer.
 
-`% adsbclient.py -H <dump1090 host> -m <MQTT host> -r <radar name> -mdb myplanedb`
+Install the requirements:
 
-The MQTT publish topic is `/adsb/<radar name>/json` and the JSON data contains the following fields:
+`% sudo -H pip3 install -r requirements.txt`
+
+and start the tracker:
+
+`% ./flighttracker.py  -H <dump1090 host> -m <MQTT host> -pdb <plane database host> -l <receiver latitude> -L <reciver longitude> --prox <MQTT proximity topic>`
+
+The published message is a string of JSON data containing the following fields:
 
 | Key          |  Description                              | Sample data                   |
 | ------------ | ----------------------------------------- | ----------------------------- |
+| icao24       | ICAO24 designator                         | "4787B0"
+| distance     | Distance to aircraft [km]                 | 42
+| bearing      | Bearing of aircraft [degrees]             | 42
 | icao24       | ICAO24 designator                         | "4787B0"
 | loggedDate   | Local timestamp                           | "2015-09-08 21:08:26.061000" 
 | operator     | Name of airline                           | "Cathay Pacific Airways"
 | type         | Type of aircraft                          | "Boeing 777 367ER"
 | registration | Aircrafts ICAO registration               | "B-KPY"
 | callsign     | Flight's callsign                         | "CPA257"
-| lost         | `true` if receiver lost sight of aircraft | `false`
-| track        | Track [degrees]                           | 131 
+| heading      | Aircraf's heading [degrees]               | 131 
 | groundSpeed  | Ground speed [knots]                      | 413 
 | altitude     | Altitude [feet]                           | 17500 
-| lon          | Lontitudee                                | 13.33108 
+| image        | Image URL                                 | https://...
+| lon          | Lontitude                                 | 13.33108 
 | lat          | Latitude                                  | 55.29126
-| verticalRate | Vertical climb/descend rate [ft/min]      | 2240
+| vspeed.      | Vertical climb/descend rate [ft/min]      | 2240
 
-The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. One excellent source is [PlaneBaseNG](http://planebase.biz) with about 147k aircrafts and can be downloaded [here](http://planebase.biz/bstnsqb). Another source is [Virtual Radar Server](http://www.virtualradarserver.co.uk/Files/BaseStation.zip) with ~77k aircrafts, mainly UK ones.
 
-If you often see aircrafts that are not found in the above databases you can add them manually to your own database and tell adsbclient.py to search it too using the argument `--myplanedb`. Invoking adsbclient.py with a non existent database will create and initialize the database in the specified file.
+### Some notes
 
-The following arguments are supported by adsbclient.py:
+The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. These are hard to come by as no public database exists that allows robots, to my knowledge. You will need to do some scraping.
 
-| Key                  | Description                                                       |
-| -------------------- | ----------------------------------------------------------------- |
-| --help               | well...
-| --radar-name NAME    | name of radar, used as topic string /adsb/NAME/json
-| --mqtt-host HOST     | MQTT broker hostname
-| --mqtt-port PORT     | MQTT broker port number (default 1883)
-| --dump1090-host HOST | dump1090 hostname
-| --dump1090-port PORT | dump1090 port number (default 30003)
-| --verbose            | Verbose output
-| --basestationdb DB   | BaseStation SQLite DB 
-| --myplanedb DB       | Your own SQLite DB with the same structure as BaseStation.sqb where you can add planes missing from the BaseStation db
+The script is designed to utilize a "Plane database server" you need to host by running
 
-## proxclient.py
+`% ./planedb-serv.py flightdata.sql 31541`
 
-This script subscribes to the JSON radar data from `adsbclient.py` and calculates the distance to the nearest aircraft using your location and makes an Bing image search for an image of the aircraft.
+Starting the script will create an empty sqlite database for you to polulate with whatever scraped data you can find (ico24 -> aircraft type, registration, and operator).
 
-`% proxclient.py -m <MQTT host> -l <your latitude> -L <your longitude> --imagedb planeimgs.sqb`
+When all is set, clone my [skygrazer git](https://github.com/kanflo/adsb-skygrazer) to have your Raspberry Pi display the data produced by flighttracker.
 
-The default publish topic is `/adsb/<prox name>/json` and the JSON data contains the following fields:
+This git previously contained adsbclient.py and proxclient.py, both have been deprecated.
 
-| Key          |  Description                         | Sample data
-| ------------ | ------------------------------------ | -----------
-| icao24       | ICAO24 designator                    | "40688E"
-| loggedDate   | Local timestamp                      | "2015-09-08 13:36:50.732000"
-| time         | Local UNIX timestamp                 | 1441712210
-| callsign     | Flight's callsign                    | "BAW18"
-| operator     | Airline                              | "British Airways"
-| type         | Aircraft type                        | "Airbus A320"
-| image        | URL to image of aircraft             | "http://..."
-| bearing      | Bearing from receiver [degrees]      | 74
-| distance     | Distance from receiver [km]          | 9.408453
-| vspeed       | Vertical climb/descend rate [ft/min] | 0
-| speed        | Ground speed [knots]                 | 518
-| altitude     | Altitude [feet]                      | 40000
-| heading      | Heading [degrees]                    | 240
-| lon          | Longitude                            | 13.50045
-| lat          | Latitude                             | 55.6902
 
-The following arguments are supported by proxclient.py:
-
-| Key                  | Description                                                       |
-| -------------------- | ----------------------------------------------------------------- |
-| --help               | well...
-| --prox NAME          | name of proxradar, used as topic string /adsb/NAME/json
-| --mqtt-host HOST     | MQTT broker hostname
-| --mqtt-port PORT     | MQTT broker port number (default 1883)
-| --dump1090-host HOST | dump1090 hostname
-| --dump1090-port PORT | dump1090 port number (default 30003)
-| --lat, --lon         | Your location on planet Earth
-| --verbose            | Verbose output
-| --imagedb DB         | An SQLite DB where the URLs to aircraft images are stored locally
-
-## airline-colors.py
+## airline-colors.py (will be deprecated)
 
 This script allows commercial pilots to, unknowingly I might add, change your moodlight. Any MQTT controllable moodlight can be set to light up in the prominent color of the airline's logo, dimmed accodring to distance to the plane.
 

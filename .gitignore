@@ -3,3 +3,5 @@ bingconfig.py
 *.db
 *.pyc
 logocolors.json
+.vscode/
+
