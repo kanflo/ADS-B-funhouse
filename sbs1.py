@@ -150,9 +150,10 @@ def __parseDateTime(array: List, dateIndex: int, timeIndex: int):
     date = __parseString(array, dateIndex)
     time = __parseString(array, timeIndex)
     if date != None and time != None:
-        try:
-            return dateutil.parser.parse("%s %s" % (date, time))
-        except ValueError as e:
-            return None
-    else:
-        return None
+      try:
+        d = dateutil.parser.parse("%s %s" % (date, time))
+      except ValueError:
+        d = None
+      except TypeError:
+        d = None
+    return d
