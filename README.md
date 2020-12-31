@@ -1,7 +1,7 @@
 **ADS-B funhouse**
 ==========
 
-This is a collection of Python scripts for playing with [ADS-B](https://en.wikipedia.org/wiki/Automatic_dependent_surveillance-broadcast) data from [dump1090](https://github.com/antirez/dump1090). You will need an [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr) receiver to join the fun.
+This is a collection of Python scripts for playing with [ADS-B](https://en.wikipedia.org/wiki/Automatic_dependent_surveillance-broadcast) data from [dump1090](https://github.com/antirez/dump1090). You will need an [rtl-sdr](http://sdr.osmocom.org/trac/wiki/rtl-sdr) receiver, or an accound at eg. [ADSB Hub](https://www.adsbhub.org) to join the fun.
 
 ## flighttracker.py
 
