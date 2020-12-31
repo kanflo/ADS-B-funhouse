@@ -388,8 +388,8 @@ class FlightTracker(object):
                 return None
             while buffering:
                 if "\n" in buffer:
-                    (line, buffer) = buffer.split("\r\n", 1)
-                    yield line
+                    (line, buffer) = buffer.split("\n", 1)
+                    yield line.rstrip("\r")
                 else:
                     try:
                         more = self.__dump1090_sock.recv(4096)

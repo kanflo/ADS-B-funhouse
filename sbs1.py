@@ -77,8 +77,8 @@ def parse(msg: str) -> Dict[str, Union[str, int, float, bool, datetime]]:
         if sbs1["callsign"]:
             sbs1["callsign"] = sbs1["callsign"].rstrip()
         sbs1["altitude"] = __parseInt(parts, 11)
-        sbs1["groundSpeed"] = __parseInt(parts, 12)
-        sbs1["track"] = __parseInt(parts, 13)
+        sbs1["groundSpeed"] = __parseFloat(parts, 12)
+        sbs1["track"] = __parseFloat(parts, 13)
         sbs1["lat"] = __parseFloat(parts, 14)
         sbs1["lon"] = __parseFloat(parts, 15)
         sbs1["verticalRate"] = __parseInt(parts, 16)
