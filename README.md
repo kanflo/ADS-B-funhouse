@@ -5,7 +5,7 @@ This is a collection of Python scripts for playing with [ADS-B](https://en.wikip
 
 ## flighttracker.py
 
-This script reads SBS1 messages from your dump1090 receiver and tracks the nearest aircraft. It publishes information about the flight on MQTT once every second with an increasing frequency if the aircraft is closer.
+This script reads SBS1 messages from your dump1090 receiver or another source of SBS1 messages like a feed from adsbhub.org and tracks the nearest aircraft. It publishes information about the flight on MQTT once every second with an increasing frequency if the aircraft is closer.
 
 Install the requirements:
 
@@ -35,6 +35,12 @@ The published message is a string of JSON data containing the following fields:
 | lon          | Lontitude                                 | 13.33108 
 | lat          | Latitude                                  | 55.29126
 | vspeed.      | Vertical climb/descend rate [ft/min]      | 2240
+
+If you feed adsbhub.org, you can receive an aggregated feed in return. This feed is in SBS1 format and only contains message types 1,3 and 4.
+
+For this to work, you need to register up to 4 IP addresses with adsbhub and connections from these addresses to data.adsbhub.org port 5002 will succeed. Then, use their feed like so:
+
+`% ./flighttracker.py  --dump1090-host data.adsbhub.org --dump1090-port 5002 <any other arguments>`
 
 
 ### Some notes
