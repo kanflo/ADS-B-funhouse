@@ -334,7 +334,7 @@ class FlightTracker(object):
         if self.__dump1090_sock == None:
             try:
                 if not self.__has_nagged:
-                    logging.info("Connecting to dump1090")
+                    logging.info("Connecting to dump1090 host on %s:%s" % (self.__dump1090_host, self.__dump1090_port))
                 self.__dump1090_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.__dump1090_sock.connect((self.__dump1090_host, self.__dump1090_port))
                 logging.info("ADSB connected")
@@ -458,6 +458,7 @@ class FlightTracker(object):
     def run(self):
         """Run the flight tracker.
         """
+        logging.info("Connecting to MQTT broker on %s:%s" % (self.__mqtt_broker, self.__mqtt_port))
         self.__mqtt_bridge = mqtt_wrapper.bridge(host = self.__mqtt_broker, port = self.__mqtt_port, client_id = "FlightTracker-%d" % (os.getpid())) # TOOD: , user_id = args.mqtt_user, password = args.mqtt_password)
         threading.Thread(target = self.__publish_thread, daemon = True).start()
 
