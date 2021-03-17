@@ -101,7 +101,7 @@ Search Bing for the plane described by the dictionary 'plane'
 
 
 """
-def image_search(icao24: str, operator: str, type: str, registration: str) -> str:
+def image_search(icao24: str, operator: str = None, type: str = None, registration: str = None, update_planedb: bool = True) -> str:
     """Search Bing for plane images. If found, update planedb with URL
 
     Arguments:
@@ -124,19 +124,37 @@ def image_search(icao24: str, operator: str, type: str, registration: str) -> st
     """
     img_url = None
     # Bing sometimes refuses to search for "Scandinavian Airlines System" :-/
-    op = operator.replace("Scandinavian Airlines System", "SAS")
-    searchTerm = "%s %s %s" % (op, type, registration)
-    logging.debug("Searching for %s", searchTerm)
+    op = None
+    if operator is not None:
+        op = operator.replace("Scandinavian Airlines System", "SAS")
+    searchTerm = ""
+    if op is not None:
+        searchTerm = "%s %s" % (searchTerm, op)
+    if type is not None:
+        searchTerm = "%s %s" % (searchTerm, type)
+    if registration is not None:
+        searchTerm = "%s %s" % (searchTerm, registration)
+    logging.debug("Searching for %s" % searchTerm)
     imageUrls = bing.imageSearch(searchTerm)
     if not imageUrls:
         imageUrls = bing.imageSearch(registration)
     if imageUrls:
-        img_url = imageUrls[0]
-        logging.info("Added image %s for %s", img_url, icao24)
-#        for k in plane:
-#            logging.info("%20s : %s" % (k, plane[k]))
-        if not planedb.update_aircraft(icao24, {'image' : img_url}):
-            logging.error("Failed to update PlaneDB image for %s" % (icao24))
+        # Filter sources as picking a random image has been known to produce naked women...
+        img_url = None
+        for temp in imageUrls:
+            if "planespotters" in temp or "jetphotos" in temp:
+                img_url = temp
+                break
+        if img_url is None:
+            for temp in imageUrls:
+                if "flugzeug" in temp or "plane" in temp or "airport" in temp or "airport" in temp:
+                    img_url = temp
+                    break
+        if update_planedb and img_url is not None:
+            logging.info("Added image %s for %s", img_url, icao24)
+            if not planedb.update_aircraft(icao24, {'image' : img_url}):
+                logging.error("Failed to update PlaneDB image for %s" % (icao24))
+        return img_url
     else:
         logging.error("Image search came up short for '%s', blacklisted (%s)?" % (searchTerm, icao24))
     return img_url
