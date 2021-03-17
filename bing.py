@@ -21,6 +21,7 @@
 
 import json
 import os, urllib.request, re, urllib.parse
+import ssl
 
 # Bing image search for python
 
@@ -29,11 +30,14 @@ headers = { 'User-Agent' : 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:60.0) Gec
 # Search for 'keywords' and return image URLs in a list or None if, well, none
 # are found or an error occurred
 def imageSearch(keywords):
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
     filters = '+filterui:imagesize-large'
     current = 1
     url = 'https://www.bing.com/images/async?q=' + urllib.parse.quote_plus(keywords) + '&first=' + str(current) + '&count=35&adlt=0&qft=' + filters
     request = urllib.request.Request(url, None, headers = headers)
-    response = urllib.request.urlopen(request)
+    response = urllib.request.urlopen(request, context=ctx)
     html = response.read().decode('utf8')
     links = re.findall('murl&quot;:&quot;(.*?)&quot;', html)
     return links
