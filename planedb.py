@@ -281,9 +281,11 @@ if __name__ == "__main__":
         elif sys.argv[1] == '-g':
             google(sys.argv[2])
         elif sys.argv[1] == '-c':
-            add_imagecheck(sys.argv[2])
+            if not add_imagecheck(sys.argv[2]):
+                print("Failed")
         elif sys.argv[1] == '-d':
-            delete_imagecheck(sys.argv[2])
+            if not delete_imagecheck(sys.argv[2]):
+                print("Failed")
         elif sys.argv[1] == '-l':
             for plane in get_imagechecks():
                 print("%8s https://www.google.com/search?tbm=isch&q=%s" % (plane["icao24"], plane["registration"]))
