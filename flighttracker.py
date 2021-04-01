@@ -236,7 +236,7 @@ class Observation(object):
         return self.__image_url
 
     def isPresentable(self) -> bool:
-        return self.__altitude and self.__groundSpeed and self.__track and self.__lat and self.__lon and self.__operator and self.__registration and self.__image_url
+        return self.__altitude and self.__groundSpeed and self.__track and self.__lat and self.__lon and self.__image_url
 
     def dump(self):
         """Dump this observation on the console
@@ -246,11 +246,11 @@ class Observation(object):
 
     def json(self, bearing: int, distance: int) -> str:
         """Return JSON representation of this observation
-        
+
         Arguments:
             bearing {int} -- bearing to observation in degrees
             distance {int} -- distance to observation in meters
-        
+
         Returns:
             str -- JSON string
         """
