@@ -475,6 +475,8 @@ class FlightTracker(object):
                 m = sbs1.parse(data)
                 if m:
                     icao24 = m["icao24"]
+                    if icao24 == "000000":  # "Ghost data" sometimes received by dump1090, ignore
+                        continue
                     if icao24 in self.__observations:
                         self.__observations[icao24].update(m)
                     else:
