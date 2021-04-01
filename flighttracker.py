@@ -381,6 +381,9 @@ class FlightTracker(object):
             except socket.error:
                 self.dump1090Close()
                 yield None
+            if buffer is None:
+                self.dump1090Close()
+                return None
             buffer = buffer.decode("utf-8")
             buffering = True
             if buffer == "":
@@ -388,8 +391,8 @@ class FlightTracker(object):
                 return None
             while buffering:
                 if "\n" in buffer:
-                    (line, buffer) = buffer.split("\n", 1)
-                    yield line.rstrip("\r")
+                    (line, buffer) = buffer.split("\r\n", 1)
+                    yield line
                 else:
                     try:
                         more = self.__dump1090_sock.recv(4096)
