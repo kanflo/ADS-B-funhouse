@@ -115,10 +115,29 @@ class PlaneImageCheck(BaseModel):
 db.connect()
 db.create_tables([Plane, Airline, Airport, Route, PlaneImageCheck])
 
-def get_aircraft(icao24):
+def get_aircraft_by_icao24(icao24):
     icao24 = icao24.lower()
     try:
         obj = Plane.get(icao24 = icao24)
+    except Plane.DoesNotExist:
+        return None
+    o = model_to_dict(obj)
+    # model_to_dict does not format dates
+    try:
+        o['added_on'] = str(obj.added_on.strftime('%Y-%m-%d %H:%M:%S'))
+    except AttributeError:
+        # String is not a date string
+        o['added_on'] = None
+    try:
+        o['updated_on'] = str(obj.updated_on.strftime('%Y-%m-%d %H:%M:%S'))
+    except AttributeError:
+        o['updated_on'] = None
+    return o
+
+def get_aircraft_by_registration(registration):
+    registration = registration.upper()
+    try:
+        obj = Plane.get(registration = registration)
     except Plane.DoesNotExist:
         abort(404)
     o = model_to_dict(obj)
@@ -134,13 +153,14 @@ def get_aircraft(icao24):
         o['updated_on'] = None
     return o
 
+
 def update_aircraft(icao24, post_dict):
     icao24 = icao24.lower()
     o = {}
     # Convert to ImmutableMultiDict to dict
     for k in post_dict:
         o[k] = post_dict[k]
-    o["icao24"] = o["icao24"].lower()
+    o["icao24"] = icao24
     try:
         obj = Plane.get(icao24 = icao24)
         try:
@@ -427,9 +447,9 @@ def index():
 def allIinfo():
     abort(404)
 
+# TODO: Will be deprecated
 @app.route("/aircraft/<string:icao24>", methods = ['POST', 'GET', 'DELETE'])
-def aircraft_info(icao24):
-    icao24 = icao24.lower()
+def aircraft_info_deprecated(icao24):
     if request.method == 'POST':
         logging.debug(request)
         logging.debug(request.form)
@@ -438,7 +458,37 @@ def aircraft_info(icao24):
         else:
             abort(400)
     elif request.method == 'GET':
-        plane = get_aircraft(icao24)
+        plane = get_aircraft_by_icao24(icao24)
+        if plane is None:
+            abort(404)
+        return "%s" % plane
+    elif request.method == 'DELETE':
+        if delete_aircraft(icao24):
+            return "OK"
+        else:
+            abort(404)
+
+@app.route("/aircraft/registration/<string:registration>", methods = ['GET'])
+def aircraft_reg_info(registration):
+    if request.method == 'GET':
+        plane = get_aircraft_by_registration(registration)
+        if plane is None:
+            abort(404)
+        return "%s" % plane
+
+@app.route("/aircraft/icao24/<string:icao24>", methods = ['POST', 'GET', 'DELETE'])
+def aircraft_ica24_info(icao24):
+    if request.method == 'POST':
+        logging.debug(request)
+        logging.debug(request.form)
+        if update_aircraft(icao24, request.form):
+            return "OK"
+        else:
+            abort(400)
+    elif request.method == 'GET':
+        plane = get_aircraft_by_icao24(icao24)
+        if plane is None:
+            abort(404)
         return "%s" % plane
     elif request.method == 'DELETE':
         if delete_aircraft(icao24):
@@ -537,7 +587,7 @@ def route_info(flight):
 def image(icao24):
     icao24 = icao24.lower()
     if request.method == 'GET':
-        plane = get_aircraft(icao24)
+        plane = get_aircraft_by_icao24(icao24)
         return "%s" % plane['image']
     else:
         abort(503)

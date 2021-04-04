@@ -46,6 +46,7 @@ last_cache_clean = time.time()
 # Dicionaries keyed on "icao24" containing "fetched_ts", "hit_ts" and "data" (data may be 'False')
 cache: Dict[str, Dict[str, str]] = {}
 
+# TODO: Make caching configurable
 def _cache_clean():
     global last_cache_clean
     if time.time() - last_cache_clean > cache_clean_interval:
@@ -79,7 +80,7 @@ def _cache_lookup(what: str) -> Union[Dict, None]:
             return cache[what]["data"]
         else:
             del cache[what]
-    return None 
+    return None
 
 def _cache_add(icao24: str, data: Dict):
     global cache
@@ -91,30 +92,46 @@ def init(_hostname: str, _port: int = 31541):
     hostname = _hostname
     port = _port
 
-def lookup_aircraft(icao24: str):
+def lookup_aircraft_icao24(icao24: str):
     _cache = cache
     data = _cache_lookup(icao24)
     if data != None:
         return data
     try:
-        resp = req.get("http://%s:%d/aircraft/%s" % (hostname, port, icao24))
+        resp = req.get("http://%s:%d/aircraft/icao24/%s" % (hostname, port, icao24))
         if resp.status_code == 200:
             data = ast.literal_eval(resp.text) # Works for single quotes
             _cache_add(icao24, data)
             return data
-    except req.exceptions.ConnectionError:
-        pass
+    except req.exceptions.ConnectionError as e:
+        logging.error("Failed to connect to planedb host %s" % hostname)
     _cache_add(icao24, False)
     return False
 
+def lookup_aircraft_registration(registration: str):
+    _cache = cache
+    data = _cache_lookup(registration)
+    if data != None:
+        return data
+    try:
+        resp = req.get("http://%s:%d/aircraft/registration/%s" % (hostname, port, registration))
+        if resp.status_code == 200:
+            data = ast.literal_eval(resp.text) # Works for single quotes
+            _cache_add(registration, data)
+            return data
+    except req.exceptions.ConnectionError as e:
+        logging.error("Failed to connect to planedb host %s" % hostname)
+    _cache_add(registration, False)
+    return False
+
 def update_aircraft(icao24: str, data: Dict):
-    url = "http://%s:%d/aircraft/%s" % (hostname, port, icao24)
+    url = "http://%s:%d/aircraft/icao24/%s" % (hostname, port, icao24)
     try:
         resp = req.post(url, data = data)
         if resp.status_code == 200:
             return resp.text == "OK"
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def lookup_airport(icao24: str):
@@ -128,7 +145,7 @@ def lookup_airport(icao24: str):
             _cache_add(icao24, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     _cache_add(icao24, False)
     return False
 
@@ -139,7 +156,7 @@ def update_airport(icao24: str, data: Dict):
         if resp.status_code == 200:
             return resp.text == "OK"
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def lookup_airline(icao24: str):
@@ -154,7 +171,7 @@ def lookup_airline(icao24: str):
             _cache_add(icao24, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     _cache_add(icao24, False)
     return False
 
@@ -165,7 +182,7 @@ def update_airline(icao24: str, data: Dict):
         if resp.status_code == 200:
             return resp.text == "OK"
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def lookup_route(callsign: str):
@@ -179,7 +196,7 @@ def lookup_route(callsign: str):
             _cache_add(callsign, data)
             return ast.literal_eval(resp.text) # Works for single quotes
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     _cache_add(callsign, False)
     return False
 
@@ -193,7 +210,7 @@ def update_route(callsign: str, data: Dict):
             print(url)
             print(resp.status_code, resp.text)
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def add_imagecheck(icao24: str):
@@ -203,7 +220,7 @@ def add_imagecheck(icao24: str):
         if resp.status_code == 200:
             return resp.text == "OK"
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def delete_imagecheck(icao24: str):
@@ -213,7 +230,7 @@ def delete_imagecheck(icao24: str):
         if resp.status_code == 200:
             return resp.text == "OK"
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return False
 
 def get_imagechecks() -> List:
@@ -223,7 +240,7 @@ def get_imagechecks() -> List:
         if resp.status_code == 200:
             return json.loads(resp.text)
     except req.exceptions.ConnectionError:
-        pass
+        logging.error("Failed to connect to planedb host %s" % hostname)
     return []
 
 
@@ -258,18 +275,33 @@ if __name__ == "__main__":
                 except OSError:
                     print("Don't know how to open a URL in this nachine, try %s" % url)
 
-    # @todo: use switches, this is ugly as hell
-
+    # TODO: Allow for setting server as an argument
     if 'PLANESERVER' in os.environ:
-        server = os.environ['PLANESERVER']
+        hostname = os.environ['PLANESERVER']
     else:
         print("You need to set the environment variable PLANESERVER to point to your planeserver.")
         sys.exit(1)
 
-    init(server)
+    init(hostname)
     if len(sys.argv) < 2:
-        print("Usage: %s [-l] [-g icao24] [-c icao24] [-d icao24] [-q icao24] [-r callsign] [-o airline] [-a airport] [-i icao24 [ -m <manufacturer> -t <type> -o <operator> -r <registration> -s <data source> -I <image url> ] ]" % sys.argv[0])
+        print("Usage: %s [-l] [-g icao24] [-c icao24] [-d icao24] [-q icao24] [-q reg] [-r callsign] [-o airline] [-a airport] [-i icao24 [ -m <manufacturer> -t <type> -o <operator> -r <registration> -s <data source> -I <image url> ] ]" % sys.argv[0])
+        print("       -g <icao24>        Google Image Search for <icao24> via its PlaneDB registration")
+        print("       -c <icao24>        Add image check")
+        print("       -d <icao24>        Delete image check")
+        print("       -q <icao24>        Query PlaneDB for aircraft")
+        print("       -q <registration>  Query PlaneDB for aircraft")
+        print("       -r <callsighn>     Query PlaneDB for callsign")
+        print("       -o <icao>          Query PlaneDB for airline")
+        print("       -a <icao>          Query PlaneDB for airport")
+        print("       -i <icao24>        Insert plane into PlaneDB with the fields:")
+        print("                               -m <manufacturer>")
+        print("                               -t <type>")
+        print("                               -o <operator>")
+        print("                               -r <registration>")
+        print("                               -s <data source>")
+        print("                               -I <image url>")
     else:
+        # TODO: use argument parser, this is ugly as hell
         if sys.argv[1] == '-o':
             dump(lookup_airline(sys.argv[2]))
         elif sys.argv[1] == '-a':
@@ -277,7 +309,9 @@ if __name__ == "__main__":
         elif sys.argv[1] == '-r':
             dump(lookup_route(sys.argv[2]))
         elif sys.argv[1] == '-q':
-            dump(lookup_aircraft(sys.argv[2]))
+            dump(lookup_aircraft_icao24(sys.argv[2]))
+        elif sys.argv[1] == '-Q':
+            dump(lookup_aircraft_registration(sys.argv[2]))
         elif sys.argv[1] == '-g':
             google(sys.argv[2])
         elif sys.argv[1] == '-c':
@@ -318,3 +352,5 @@ if __name__ == "__main__":
                 print("ok")
             else:
                 print("Update failed")
+        else:
+            print("Unknown switch")
