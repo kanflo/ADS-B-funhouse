@@ -140,7 +140,7 @@ def update_aircraft(icao24, post_dict):
         try:
             update_model_from_dict(obj, o)
         except AttributeError as e:
-            print(e)
+            logging.error(e)
     except Plane.DoesNotExist:
         o['icao24'] = icao24
         obj = Plane(**o)
@@ -151,16 +151,16 @@ def update_aircraft(icao24, post_dict):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
-        print("IntegrityError:")
-        print(e)
-        print(obj)
+        logging.error("IntegrityError:")
+        logging.error(o)
+        logging.error(e)
+        logging.error(obj)
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def delete_aircraft(icao24):
@@ -197,13 +197,12 @@ def add_imagecheck(icao24):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def delete_imagecheck(icao24):
@@ -214,15 +213,14 @@ def delete_imagecheck(icao24):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
         return False
     except PlaneImageCheck.DoesNotExist as e:
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def get_airport(ica_or_iata):
@@ -255,7 +253,7 @@ def update_airport(icao, post_dict):
         try:
             update_model_from_dict(obj, o)
         except AttributeError as e:
-            print(e)
+            logging.error(e)
     except Airport.DoesNotExist:
         o['icao'] = icao
         obj = Airport(**o)
@@ -266,16 +264,15 @@ def update_airport(icao, post_dict):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
-        print("IntegrityError:")
-        print(e)
-        print(obj)
+        logging.error("IntegrityError:")
+        logging.error(e)
+        logging.error(obj)
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def delete_airport(icao):
@@ -319,7 +316,7 @@ def update_airline(icao, post_dict):
         try:
             update_model_from_dict(obj, o)
         except AttributeError as e:
-            print(e)
+            logging.error(e)
     except Airline.DoesNotExist:
         o['icao'] = icao
         obj = Airline(**o)
@@ -330,16 +327,15 @@ def update_airline(icao, post_dict):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
-        print("IntegrityError:")
-        print(e)
-        print(obj)
+        logging.error("IntegrityError:")
+        logging.error(e)
+        logging.error(obj)
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def delete_airline(icao):
@@ -383,7 +379,7 @@ def update_route(flight, post_dict):
         try:
             update_model_from_dict(obj, o)
         except AttributeError as e:
-            print(e)
+            logging.error(e)
     except Route.DoesNotExist:
         o['flight'] = flight
         obj = Route(**o)
@@ -394,16 +390,15 @@ def update_route(flight, post_dict):
         return True
     except KeyError as e:
         logging.error("Exception occurred", exc_info=True)
-        print(e)
         return False
     except IntegrityError as e:
-        print("IntegrityError:")
-        print(e)
-        print(obj)
+        logging.error("IntegrityError:")
+        logging.error(e)
+        logging.error(obj)
         return False
     except OperationalError as e:
-        print("peewee operational error:")
-        print(e)
+        logging.error("peewee operational error:")
+        logging.error(e)
         return False
 
 def delete_route(flight):
