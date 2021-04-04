@@ -140,7 +140,7 @@ def update_aircraft(icao24, post_dict):
     # Convert to ImmutableMultiDict to dict
     for k in post_dict:
         o[k] = post_dict[k]
-
+    o["icao24"] = o["icao24"].lower()
     try:
         obj = Plane.get(icao24 = icao24)
         try:
@@ -253,7 +253,7 @@ def update_airport(icao, post_dict):
     # Convert to ImmutableMultiDict to dict
     for k in post_dict:
         o[k] = post_dict[k]
-
+    o['icao'] = o['icao'].upper()
     try:
         obj = Airport.get(icao = icao)
         try:
@@ -316,6 +316,7 @@ def update_airline(icao, post_dict):
     # Convert to ImmutableMultiDict to dict
     for k in post_dict:
         o[k] = post_dict[k]
+    o['icao'] = o['icao'].upper()
 
     try:
         obj = Airline.get(icao = icao)
@@ -379,6 +380,7 @@ def update_route(flight, post_dict):
     # Convert to ImmutableMultiDict to dict
     for k in post_dict:
         o[k] = post_dict[k]
+    o['flight'] = o['flight'].upper()
 
     try:
         obj = Route.get(flight = flight)
