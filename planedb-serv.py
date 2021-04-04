@@ -26,13 +26,19 @@
 #
 
 import sys
+_missing_imports = []
 try:
     from flask import Flask, redirect, url_for, request, abort
+except ImportError:
+    _missing_imports.append("flask")
+try:
     from peewee import *
     from playhouse.shortcuts import *
 except ImportError:
+    _missing_imports.append("peewee")
+if len(_missing_imports) > 0:
     print("Missing requirements")
-    print("sudo -H pip3 install flask peewee'")
+    print("sudo -H python3 -m pip install %s" % (" ".join(_missing_imports)))
     sys.exit(1)
 import sys
 import datetime
