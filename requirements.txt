@@ -2,3 +2,5 @@ coloredlogs==14.0
 paho-mqtt==1.5.0
 python-dateutil==2.8.1
 requests==2.23.0
+git+git://github.com/kanflo/mqtt_wrapper#egg=mqtt_wrapper
+git+git://github.com/kanflo/planedb#egg=planedb

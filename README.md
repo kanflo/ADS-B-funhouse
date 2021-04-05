@@ -9,7 +9,7 @@ This script reads SBS1 messages from your dump1090 receiver or another source of
 
 Install the requirements:
 
-`% sudo -H pip3 install -r requirements.txt`
+`sudo -H python3 -m pip install -r requirements.txt`
 
 and start the tracker:
 
@@ -47,7 +47,7 @@ For this to work, you need to register up to 4 IP addresses with adsbhub and con
 
 The aircraft's operator, type and registration are not available in the ADS-B data the aircraft transmits and needs to be pulled from another data source. These are hard to come by as no public database exists that allows robots, to my knowledge. You will need to do some scraping.
 
-The script is designed to utilize a "Plane database server" you need to host by running
+The script is designed to utilize a [Plane database server](https://github.com/kanflo/planedb) you need to host by running
 
 `% ./planedb-serv.py flightdata.sql 31541`
 

@@ -39,7 +39,7 @@ import time
 import re
 import errno
 import sbs1
-import planedb
+from planedb import *
 import utils
 import mqtt_wrapper
 
@@ -50,6 +50,8 @@ OBSERVATION_CLEAN_INTERVAL = 30
 DUMP1090_SOCKET_TIMEOUT = 60
 
 args = None
+
+counter = 0
 
 # http://stackoverflow.com/questions/1165352/fast-comparison-between-two-python-dictionary
 class DictDiffer(object):
@@ -125,7 +127,7 @@ class Observation(object):
                 self.__type = plane["manufacturer"] + " " + plane["model"]
                 self.__operator = plane["operator"]
                 self.__image_url = plane["image"]
-                if self.__image_url is None:
+                if self.__image_url is None or len(self.__image_url) < 2:
                     self.__image_url = utils.image_search(self.__icao24, self.__operator, self.__type, self.__registration)
             else:
                 if not self.__planedb_nagged:
@@ -266,8 +268,10 @@ class Observation(object):
             callsign = "\"%s\"" % self.__callsign
 
         distance = distance / 1000
-        return '{"vspeed": %d, "time": %d, "lat": %.5f, "lon": %.5f, "distance": %.2f, "image": "%s", "altitude": %d, "speed": %d, "icao24": "%s", "registration": "%s", "heading": %d, "operator": "%s", "bearing": %d, "loggedDate": "%s", "type": "%s", "callsign": %s, "route" : %s, "counter": 0}' % \
-            (self.__verticalRate, time.time(), self.__lat, self.__lon, distance, self.__image_url, self.__altitude, self.__groundSpeed, self.__icao24, self.__registration, self.__track, self.__operator, bearing, self.__loggedDate, self.__type, callsign, route)
+        global counter
+        counter += 1
+        return '{"vspeed": %d, "time": %d, "lat": %.5f, "lon": %.5f, "distance": %.2f, "image": "%s", "altitude": %d, "speed": %d, "icao24": "%s", "registration": "%s", "heading": %d, "operator": "%s", "bearing": %d, "loggedDate": "%s", "type": "%s", "callsign": %s, "route" : %s, "counter": %d}' % \
+            (self.__verticalRate, time.time(), self.__lat, self.__lon, distance, self.__image_url, self.__altitude, self.__groundSpeed, self.__icao24, self.__registration, self.__track, self.__operator, bearing, self.__loggedDate, self.__type, callsign, route, counter)
 
 
     def dict(self):
