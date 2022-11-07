@@ -2,7 +2,7 @@ from typing import *
 import logging
 import math
 import bing
-import planedb
+from planedb import *
 from datetime import datetime, timedelta
 
 
@@ -65,7 +65,7 @@ def coordinate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
 
 
 def calc_travel(lat: float, lon: float, utc_start: datetime, speed_kts: float, heading: float) -> Tuple[float, float]:
-    """Calculate travel from lat, lon starting at a certain time with giben speed and heading
+    """Calculate travel from lat, lon starting at a certain time with given speed and heading
 
     Arguments:
         lat {float} -- Starting latitude
@@ -96,11 +96,25 @@ def calc_travel(lat: float, lon: float, utc_start: datetime, speed_kts: float, h
 
     return (lat2, lon2)
 
-"""
-Search Bing for the plane described by the dictionary 'plane'
+
+def blacklisted(url: str) -> bool:
+    """Return True if the URL points to a blacklisted source (ie. one that is on to us and reponds with a 403)
+
+    Args:
+        url (str): URL to image
+
+    Returns:
+        bool: True if URL is blacklisted
+    """
+    if "airliners.net" in url:
+        return True
+    if "planefinder.net" in url:
+        return True
+    if "carsbase.com" in url:
+        return True
+    return False
 
 
-"""
 def image_search(icao24: str, operator: str = None, type: str = None, registration: str = None, update_planedb: bool = True) -> str:
     """Search Bing for plane images. If found, update planedb with URL
 
@@ -142,12 +156,15 @@ def image_search(icao24: str, operator: str = None, type: str = None, registrati
         # Filter sources as picking a random image has been known to produce naked women...
         img_url = None
         for temp in imageUrls:
+            # These are prisitine sources
             if "planespotters" in temp or "jetphotos" in temp:
                 img_url = temp
                 break
         if img_url is None:
             for temp in imageUrls:
-                if "flugzeug" in temp or "plane" in temp or "airport" in temp or "airport" in temp:
+                if blacklisted(temp):
+                    continue
+                if "flugzeug" in temp or "plane" in temp or "airport" in temp:
                     img_url = temp
                     break
         if update_planedb and img_url is not None:

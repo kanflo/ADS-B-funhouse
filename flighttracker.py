@@ -102,6 +102,8 @@ class Observation(object):
     __route = None
     __image_url = None
     __planedb_nagged = False  # Used in case the icao24 is unknown and we only want to log this once
+    __planedb_unknown = False
+    __planedb_unknown_nagged = False
 
     def __init__(self, sbs1msg):
         logging.info("%s appeared" % sbs1msg["icao24"])
@@ -121,7 +123,7 @@ class Observation(object):
         self.__type = None
         self.__updated = True
         if args.pdb_host:
-            plane = planedb.lookup_aircraft(self.__icao24)
+            plane = planedb.lookup_aircraft_icao24(self.__icao24)
             if plane:
                 self.__registration = plane["registration"]
                 self.__type = plane["manufacturer"] + " " + plane["model"]
@@ -130,6 +132,7 @@ class Observation(object):
                 if self.__image_url is None or len(self.__image_url) < 2:
                     self.__image_url = utils.image_search(self.__icao24, self.__operator, self.__type, self.__registration)
             else:
+                self.__planedb_unknown = True
                 if not self.__planedb_nagged:
                     self.__planedb_nagged = True
                     logging.error("icao24 %s not found in the database" % (self.__icao24))
@@ -164,7 +167,7 @@ class Observation(object):
         #    self.__loggedDate = sbs1msg["loggedDate"]
 
         if args.pdb_host:
-            plane = planedb.lookup_aircraft(self.__icao24)
+            plane = planedb.lookup_aircraft_icao24(self.__icao24)
             if plane:
                 self.__registration = plane['registration']
                 self.__type = plane['manufacturer'] + " " + plane['model']
@@ -172,6 +175,7 @@ class Observation(object):
             else:
                 if not self.__planedb_nagged:
                     self.__planedb_nagged = True
+                    self.__planedb_unknown = True
                     logging.error("icao24 %s not found in the database" % (self.__icao24))
             if self.__callsign and not self.__route:
                 route = planedb.lookup_route(self.__callsign)
@@ -246,6 +250,31 @@ class Observation(object):
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         logging.debug("> %s  %s %-7s - trk:%3d spd:%3d alt:%5d (%5d) %.4f, %.4f" % (now, self.__icao24, self.__callsign, self.__track, self.__groundSpeed, self.__altitude, self.__verticalRate, self.__lat, self.__lon))
 
+    def isKnown(self) -> bool:
+        """Return True if this plane is known in the database
+
+        Returns:
+            bool: True if plane is known, False otherwise
+        """
+        return not self.__planedb_unknown
+
+    def isKnownNagged(self) -> bool:
+        """If the plane is unknown, return False __once__. Why on earth is this?
+           Well, the function is used for determining if we should publish an MQTT
+           topic about the unknown aircraft. We do not want to spam each an every time
+           we receive an update on an unknown aircraft so we need to filter this somehow.
+           This is a feeble attempt at doing so...
+
+        Returns:
+            bool: True if plane is known or we have called this function several times
+                  False if the plans is unknown and this is the first time we call the function
+        """
+        if not self.__planedb_unknown_nagged:
+            self.__planedb_unknown_nagged = True
+            return not self.__planedb_unknown
+        else:
+            return True
+
     def json(self, bearing: int, distance: int) -> str:
         """Return JSON representation of this observation
 
@@ -302,8 +331,9 @@ class FlightTracker(object):
     __tracking_distance: int = 999999999
     __next_clean: datetime = None
     __has_nagged: bool = False
+    __unknown_aircraft_topic: str = None
 
-    def __init__(self, dump1090_host: str, mqtt_broker: str, latitude: float, longitude: float, proximity_topic: str, dump1090_port: int = 30003, mqtt_port: int = 1883, ):
+    def __init__(self, dump1090_host: str, mqtt_broker: str, latitude: float, longitude: float, proximity_topic: str, dump1090_port: int = 30003, mqtt_port: int = 1883, unknown_aircraft_topic: str = None):
         """Initialize the flight tracker
 
         Arguments:
@@ -312,6 +342,7 @@ class FlightTracker(object):
             latitude {float} -- Latitude of receiver
             longitude {float} -- Longitude of receiver
             proximity_topic {str} -- MQTT topic for proximity reports
+            unknown_aircraft_topic {str} -- MQTT topic for unknown aircraft reports
 
         Keyword Arguments:
             dump1090_port {int} -- Override the dump1090 raw port (default: {30003})
@@ -327,6 +358,7 @@ class FlightTracker(object):
         self.__observations = {}
         self.__next_clean = datetime.utcnow() + timedelta(seconds=OBSERVATION_CLEAN_INTERVAL)
         self.__prox_topic = proximity_topic
+        self.__unknown_aircraft_topic = unknown_aircraft_topic
 
 
     def dump1090Connect(self) -> bool:
@@ -380,9 +412,11 @@ class FlightTracker(object):
             try:
                 buffer = self.__dump1090_sock.recv(4096)
             except ConnectionResetError:
+                logging.warning("Connection reset")
                 self.dump1090Close()
                 yield None
             except socket.error:
+                logging.warning("Socket error")
                 self.dump1090Close()
                 yield None
             if buffer is None:
@@ -401,15 +435,20 @@ class FlightTracker(object):
                     try:
                         more = self.__dump1090_sock.recv(4096)
                     except ConnectionResetError:
+                        logging.warning("Connection reset")
                         self.dump1090Close()
                         yield None
                     except socket.error:
+                        logging.warning("Socket error")
                         self.dump1090Close()
                         yield None
                     if not more:
                         buffering = False
                     else:
-                        more = more.decode("utf-8")
+                        try:
+                            more = more.decode("utf-8")
+                        except AttributeError:
+                            pass
                         if more == "":
                             self.dump1090Close()
                             return None
@@ -444,7 +483,7 @@ class FlightTracker(object):
                 # altitude = sbs1["altitude"]
 
                 retain = False
-                self.__mqtt_bridge.publish(self.__prox_topic, cur.json(bearing, distance), 0, retain)
+                self.__mqtt_bridge.client.publish(self.__prox_topic, cur.json(bearing, distance), 0, retain)
                 logging.info("%s at %5d brg %3d alt %5d trk %3d spd %3d %s" % (cur.getIcao24(), distance, bearing, cur.getAltitude(), cur.getHeading(), cur.getGroundSpeed(), cur.getType()))
 
                 if distance < 3000:
@@ -466,15 +505,16 @@ class FlightTracker(object):
         """Run the flight tracker.
         """
         logging.info("Connecting to MQTT broker on %s:%s" % (self.__mqtt_broker, self.__mqtt_port))
-        self.__mqtt_bridge = mqtt_wrapper.bridge(host = self.__mqtt_broker, port = self.__mqtt_port, client_id = "FlightTracker-%d" % (os.getpid())) # TOOD: , user_id = args.mqtt_user, password = args.mqtt_password)
+        self.__mqtt_bridge = mqtt_wrapper.bridge(host = self.__mqtt_broker, port = self.__mqtt_port, mqtt_topic = "foobar", client_id = "FlightTracker-%d" % (os.getpid())) # TOOD: , user_id = args.mqtt_user, password = args.mqtt_password)
         threading.Thread(target = self.__publish_thread, daemon = True).start()
 
         while True:
+            logging.info("Connecting to dump1090")
             if not self.dump1090Connect():
                 continue
             for data in self.dump1090Read():
                 if data is None:
-                    continue
+                    break
                 self.cleanObservations()
                 m = sbs1.parse(data)
                 if m:
@@ -499,6 +539,9 @@ class FlightTracker(object):
                                 self.__tracking_icao24 = icao24
                                 self.__tracking_distance = distance
                                 logging.info("Now tracking %s at %d" % (self.__tracking_icao24, self.__tracking_distance))
+                    if not self.__observations[icao24].isKnownNagged() and self.__unknown_aircraft_topic is not None:
+                        self.__mqtt_bridge.client.publish(self.__unknown_aircraft_topic, icao24)
+
 
     def selectNearestObservation(self):
         """Select nearest presentable aircraft
@@ -556,6 +599,7 @@ def main():
     parser.add_argument('-P', '--dump1090-port', type=int, help="dump1090 port number (default 30003)", default=30003)
     parser.add_argument('-pdb', '--planedb', dest='pdb_host', help="Plane database host")
     parser.add_argument('-x', '--prox', dest='prox_topic', help="MQTT proximity topic", default="/adsb/proximity/json")
+    parser.add_argument('-n', '--unk', dest='unknown_topic', help="MQTT unknown aircraft topic", default="/adsb/unknown")
     parser.add_argument('-v', '--verbose',  action="store_true", help="Verbose output")
 
     args = parser.parse_args()
@@ -586,7 +630,7 @@ def main():
     if args.pdb_host:
         planedb.init(args.pdb_host)
 
-    tracker = FlightTracker(args.dump1090_host, args.mqtt_host, args.lat, args.lon, args.prox_topic, dump1090_port = args.dump1090_port, mqtt_port = args.mqtt_port)
+    tracker = FlightTracker(args.dump1090_host, args.mqtt_host, args.lat, args.lon, args.prox_topic, dump1090_port = args.dump1090_port, mqtt_port = args.mqtt_port, unknown_aircraft_topic = args.unknown_topic)
     tracker.run()  # Never returns
 
 

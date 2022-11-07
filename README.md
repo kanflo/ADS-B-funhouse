@@ -55,31 +55,34 @@ Starting the script will create an empty sqlite database for you to polulate wit
 
 When all is set, clone my [skygrazer git](https://github.com/kanflo/adsb-skygrazer) to have your Raspberry Pi display the data produced by flighttracker.
 
-This git previously contained adsbclient.py and proxclient.py, both have been deprecated.
-
-
-## airline-colors.py (will be deprecated)
+## airline-colors.py
 
 This script allows commercial pilots to, unknowingly I might add, change your moodlight. Any MQTT controllable moodlight can be set to light up in the prominent color of the airline's logo, dimmed accodring to distance to the plane.
 
-Subscribing to the JSON data from `proxclient.py`, it fetches the logo for the airline that operates the nearest flight and calculates the prominent color of their logo. The color is dimmed according to distance and posted to an MQTT topic.
+Subscribing to the MQTT data from `flighttracker.py`, it fetches the logo for the airline that operates the nearest flight and calculates the prominent color of their logo. The color is dimmed according to distance and posted to an MQTT topic.
 
 The prominent color in the logo is the one found in the most pixels, white and black excluded. Colors are cached in a file called `logocolors.json`.
 
-`% airline-colors.py -m <MQTT host> -d <max distance> -t <color topic>`
+`% airline-colors.py -m <MQTT host> -d <max distance (km)> -p <adsb topic> -t <color topic>`
 
-The default publish topic is `airlinecolor` containing the message `#RRGGBB`
+The default publish topic is `ghost/color` containing the message `#RRGGBB`
 
 The following arguments are supported by:
 
-| Key         | Description                                                       |
-| ------------| ---------------------------------------------------- |
-| --help      | well...
-| --mqtt-host | MQTT broker hostname
-| --mqtt-port | MQTT broker port number (default 1883)
-| --distance  | max distance in kilometers, the color will be black (#000000) for aircrafts beyond this distance
-| --topic     | the topic to post color data to
-| --verbose   | Verbose output
+| Key           | Description                                                       |
+| --------------| ---------------------------------------------------- |
+| --help        | well...
+| --mqtt-host   | MQTT broker hostname
+| --mqtt-port   | MQTT broker port number (default 1883)
+| --distance    | max distance in kilometers, the color will be black (#000000) for aircrafts beyond this distance
+| --prox-topic  | The ADSB proximity topic from flighttracker.py
+| --color-topic | The topic to post color data to
+| --verbose     | Verbose output
+
+
+
+This git previously contained adsbclient.py and proxclient.py, both have been deprecated.
+
 
 -
 Released under the MIT license. Have fun!

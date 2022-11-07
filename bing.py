@@ -20,7 +20,8 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import json
-import os, urllib.request, re, urllib.parse
+import os
+import urllib.request, re, urllib.parse
 import ssl
 
 # Bing image search for python
@@ -33,7 +34,7 @@ def imageSearch(keywords):
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    filters = '+filterui:imagesize-large'
+    filters = "" # TODO '+filterui:imagesize-large'
     current = 1
     url = 'https://www.bing.com/images/async?q=' + urllib.parse.quote_plus(keywords) + '&first=' + str(current) + '&count=35&adlt=0&qft=' + filters
     request = urllib.request.Request(url, None, headers = headers)

@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Johan Kanflo (github.com/kanflo)
+# Copyright (c) 2021 Johan Kanflo (github.com/kanflo)
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -19,96 +19,51 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import sys, os
-import urllib2
-import cStringIO
+from typing import *
+import os
+from urllib.request import urlopen
+import io
 import json
-import socket
 import logging
-import bing
-
-log = logging.getLogger(__name__)
-
+import duckduckgo
 try:
-    from PIL import Image
+    from colorthief import ColorThief
 except ImportError:
-    print("Pillow module not found, install using 'sudo pip install Pillow'")
+    print("Color Thief module not found, install using 'sudo -H python -m pip install colorthief'")
     exit(1)
 
 
-def getImage(searchTerm):
-    searchTerm = "%s+logo" % (searchTerm)
-    log.debug("Searching for %s" % searchTerm)
-
+def get_prominent_color(search_term: str) -> tuple:
+    logging.debug("Searching for %s" % search_term)
     try:
-        imageUrls = bing.imageSearch(searchTerm, {"minWidth":400, "minHeight":400})
+        images = duckduckgo.search(search_term)
     except Exception as e:
-        log.error("Bing exception error: %s" % (e))
+        logging.error("Search exception error: %s" % (e))
         return None
 
-    for url in imageUrls:
-        log.debug(" Checking %s" % url)
-        fileName, fileExtension = os.path.splitext(url)
+    color = (0, 0, 0)
+    for image in images:
+        if image["height"] > 3000 or image["width"] > 3000:
+            logging.debug("Image %s too large (WxH : %dx%d)" % (image["image"], image["width"], image["height"]))
+            continue
+        _, fileExtension = os.path.splitext(image["image"])
         if fileExtension != ".svg" and fileExtension != ".gif":
-
-            log.debug("Fetching %s" % url)
-            opener = urllib2.build_opener()
-            opener.addheaders = [('User-agent', 'Mozilla/5.0')]
             try:
-                file = cStringIO.StringIO(opener.open(url, timeout = 10).read())
-                im = Image.open(file)
-                return (im, url)
-            except urllib2.HTTPError as e:
-                log.error("HTTP error: %s for %s" % (e, url))
-                log.error("searchTerm : '%s'" % (searchTerm))
-                pass
-            except UnicodeEncodeError as e:
-                log.error("UnicodeEncodeError error: %s" % (e))
-                log.error("searchTerm : '%s'" % (searchTerm))
-                pass
-            except urllib2.URLError as e:
-                log.error("URLError error: %s for %s" % (e, url))
-                log.error("searchTerm : '%s'" % (searchTerm))
-                pass
+                logging.debug("Fetching %s" % (image["image"]))
+                fd = urlopen(image["image"])
+                f = io.BytesIO(fd.read())
+                color_thief = ColorThief(f)
+                color = color_thief.get_color(quality=1)
+            except Exception as e:
+                logging.error("Image fetch caused exception", exc_info = True)
+                continue
+            return (color, image["image"])
 
-    return (None, None)
+    # In case we cannot find a color, make sure we don't end up here in 10 milliseconds
+    return ((0,0,0), "error")
 
-def getProminentColor(searchTerm):
-    (im, url) = getImage(searchTerm)
-    if im == None:
-        # In case we cannot find a color, make sure we don't end up here in 10 milliseconds
-        return ((0,0,0), "error")
 
-    histogram = {}
-    limit = 10
-
-    px = im.getpixel((0, 0))
-    if isinstance(px, (int, long)):
-        im = im.convert() # Conver to multi-layer image
-
-    try:
-        for i in range(im.size[0]):
-            for j in range(im.size[1]):
-                px = im.getpixel((i,j))
-                if px != (0, 0, 0) and px != (0, 0, 0, 0) and px != (255, 255, 255):
-                    if abs(px[0]-px[1]) > limit or abs(px[0]-px[2]) > limit or abs(px[1]-px[2]) > limit:
-                        if not px in histogram:
-                            histogram[px] = 1
-                        else:
-                            histogram[px] = histogram[px] + 1
-    except AttributeError as e:
-        pass # Grayscale image?
-
-    px_max = (0, 0, 0)
-    max_count = 0
-    for px in histogram:
-        if histogram[px] > max_count:
-            px_max = px
-            max_count = histogram[px]
-
-    return (((px_max[0], px_max[1], px_max[2])), url)
-
-def loadColorData():
+def load_color_data():
     global colors
     try:
         colors = json.load(open("logocolors.json"))
@@ -116,17 +71,18 @@ def loadColorData():
         colors = {}
     return colors
 
-def getColor(key):
+def get_color(key: str) -> tuple:
     global colors
-    key = key.encode('utf-8', 'ignore')
     if key in colors:
         color = colors[key]["color"]
     else:
-        (color, url) = getProminentColor(key)
+        (color, url) = get_prominent_color(key + " logo")
         if color and url:
             colors[key] = {}
             colors[key]["color"] = color
             colors[key]["url"] = url
+            colors[key]["hex"] = "%02x%02x%02x" % (color[0], color[1], color[2])
+            logging.info("New color: %s : #%s" % (key, colors[key]["hex"]))
             with open("logocolors.json", "w+") as f:
                 f.write(json.dumps(colors))
     return color

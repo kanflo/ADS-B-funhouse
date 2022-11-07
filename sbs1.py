@@ -149,6 +149,7 @@ def __parseDateTime(array: List, dateIndex: int, timeIndex: int):
     Return datetime value or None if indexes are out of bounds or type casting failed"""
     date = __parseString(array, dateIndex)
     time = __parseString(array, timeIndex)
+    d = None
     if date != None and time != None:
       try:
         d = dateutil.parser.parse("%s %s" % (date, time))
