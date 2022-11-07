@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Johan Kanflo (github.com/kanflo)
+# Copyright (c) 2022 Johan Kanflo (github.com/kanflo)
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -34,6 +34,14 @@ except ImportError:
 
 
 def get_prominent_color(search_term: str) -> tuple:
+    """Get the prominent color from image
+
+    Args:
+        im (PngImageFile): PIL image
+
+    Returns:
+        tuple: (r, g, b) of most prominent color or (0, 0, 0) in case of errors
+    """
     logging.debug("Searching for %s" % search_term)
     try:
         images = duckduckgo.search(search_term)
@@ -63,7 +71,12 @@ def get_prominent_color(search_term: str) -> tuple:
     return ((0,0,0), "error")
 
 
-def load_color_data():
+def load_color_data() -> dict:
+    """Load color data from logocolors.json
+
+    Returns:
+        dict: A dictionary used internally
+    """
     global colors
     try:
         colors = json.load(open("logocolors.json"))
@@ -71,18 +84,28 @@ def load_color_data():
         colors = {}
     return colors
 
-def get_color(key: str) -> tuple:
+
+def get_color(airline: str) -> tuple:
+    """Get color for named airline. If the airline is not found in the cache,
+       make an image search, analyze and store result.
+
+    Args:
+        airline (str): Name of airline
+
+    Returns:
+        tuple: And (r, g, b) tuple or (0, 0, 0) if the airline is not known or in case of errors
+    """
     global colors
-    if key in colors:
-        color = colors[key]["color"]
+    if airline in colors:
+        color = colors[airline]["color"]
     else:
-        (color, url) = get_prominent_color(key + " logo")
+        (color, url) = get_prominent_color(airline + " logo")
         if color and url:
-            colors[key] = {}
-            colors[key]["color"] = color
-            colors[key]["url"] = url
-            colors[key]["hex"] = "%02x%02x%02x" % (color[0], color[1], color[2])
-            logging.info("New color: %s : #%s" % (key, colors[key]["hex"]))
+            colors[airline] = {}
+            colors[airline]["color"] = color
+            colors[airline]["url"] = url
+            colors[airline]["hex"] = "%02x%02x%02x" % (color[0], color[1], color[2])
+            logging.info("New color: %s : #%s" % (airline, colors[airline]["hex"]))
             with open("logocolors.json", "w+") as f:
                 f.write(json.dumps(colors))
     return color
