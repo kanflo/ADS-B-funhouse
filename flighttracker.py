@@ -22,22 +22,16 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from typing import *
-import socket, select
+import socket
 import argparse
 import threading
-import json
 import sys
 import os
 import logging
 import logging
 import coloredlogs
-import calendar
 from datetime import datetime, timedelta
-import signal
-import random
 import time
-import re
-import errno
 import sbs1
 from planedb import *
 import utils
