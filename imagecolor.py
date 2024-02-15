@@ -63,7 +63,7 @@ def get_prominent_color(search_term: str) -> tuple:
                 color_thief = ColorThief(f)
                 color = color_thief.get_color(quality=1)
             except Exception as e:
-                logging.error("Image fetch caused exception", exc_info = True)
+                logging.error("Image fetch caused exception at %s" % image["image"], exc_info = True)
                 continue
             return (color, image["image"])
 
