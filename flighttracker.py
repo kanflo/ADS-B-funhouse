@@ -177,6 +177,10 @@ class Observation(object):
                     src = planedb.lookup_airport(route['src_iata'])
                     dst = planedb.lookup_airport(route['dst_iata'])
                     if src and dst:
+                        if src.name:
+                            src.name = src.name.replace("\"", "'")
+                        if dst.name:
+                            dst.name = dst.name.replace("\"", "'")
                         src.pop('id', None)
                         src.pop('added_on', None)
                         src.pop('updated_on', None)
@@ -293,6 +297,7 @@ class Observation(object):
         distance = distance / 1000
         global counter
         counter += 1
+        # TODO: Use json.dumps instead
         return '{"vspeed": %d, "time": %d, "lat": %.5f, "lon": %.5f, "distance": %.5f, "image": "%s", "altitude": %d, "speed": %d, "icao24": "%s", "registration": "%s", "heading": %d, "operator": "%s", "bearing": %d, "loggedDate": "%s", "type": "%s", "callsign": %s, "route" : %s, "counter": %d}' % \
             (self.__verticalRate, time.time(), self.__lat, self.__lon, distance, self.__image_url, self.__altitude, self.__groundSpeed, self.__icao24, self.__registration, self.__track, self.__operator, bearing, self.__loggedDate, self.__type, callsign, route, counter)
 
