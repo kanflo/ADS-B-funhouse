@@ -1,7 +1,7 @@
 coloredlogs==15.0.1
 paho-mqtt==1.5.1
 python-dateutil==2.8.1
-requests==2.31.0
+requests==2.32.0
 colorthief==0.2.1
 mqtt-wrapper @ git+https://github.com/EmaroLab/mqtt_wrapper.git@ad86686a8e21ebcac130f19656b5e1944035c2f3
 git+https://github.com/kanflo/planedb#egg=planedb
