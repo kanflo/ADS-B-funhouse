@@ -1,9 +1,13 @@
-from typing import *
+#pyright: strict
+
+#import typing import (
+#
+#)
 import logging
 import math
 import bing
-from planedb import *
-from datetime import datetime, timedelta
+import planedb
+from datetime import datetime
 
 
 def deg2rad(deg: float) -> float:
@@ -32,13 +36,13 @@ def bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     rlat1 = math.radians(lat1)
     rlat2 = math.radians(lat2)
-    rlon1 = math.radians(lon1)
-    rlon2 = math.radians(lon2)
+    #rlon1 = math.radians(lon1)
+    #rlon2 = math.radians(lon2)
     dlon = math.radians(lon2-lon1)
 
     b = math.atan2(math.sin(dlon)*math.cos(rlat2),math.cos(rlat1)*math.sin(rlat2)-math.sin(rlat1)*math.cos(rlat2)*math.cos(dlon)) # bearing calc
     bd = math.degrees(b)
-    br,bn = divmod(bd+360,360) # the bearing remainder and final bearing
+    _ ,bn = divmod(bd+360, 360) # the bearing remainder and final bearing
 
     return bn
 
@@ -64,8 +68,38 @@ def coordinate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> f
     return d
 
 
-def calc_travel(lat: float, lon: float, utc_start: datetime, speed_kts: float, heading: float) -> Tuple[float, float]:
-    """Calculate travel from lat, lon starting at a certain time with given speed and heading
+def calc_travel2(lat: float, lon: float, duration_s: float, speed_kts: float, heading: float):
+    """Calculate travel from lat, lon starting given speed, heading and duration
+
+    Arguments:
+        lat {float} -- Starting latitude
+        lon {float} -- Starting longitude
+        duration_s {float} -- Travel duration in seconds
+        speed_kts {float} -- Speed in knots
+        heading {float} -- Heading in degress
+
+    Returns:
+        Tuple[float, float] -- The new lat/lon as a tuple
+    """
+    R = 6378.1 # Radius of the Earth
+    brng = math.radians(heading) # Bearing is 90 degrees converted to radians.
+    speed_mps = 0.514444 * speed_kts # knots -> m/s
+    d = (duration_s * speed_mps) / 1000.0 # Distance in km
+
+    lat1 = math.radians(lat) # Current lat point converted to radians
+    lon1 = math.radians(lon) # Current long point converted to radians
+
+    lat2 = math.asin(math.sin(lat1)*math.cos(d/R) + math.cos(lat1)*math.sin(d/R)*math.cos(brng))
+    lon2 = lon1 + math.atan2(math.sin(brng)*math.sin(d/R)*math.cos(lat1), math.cos(d/R)-math.sin(lat1)*math.sin(lat2))
+
+    lat2 = math.degrees(lat2)
+    lon2 = math.degrees(lon2)
+
+    return (lat2, lon2)
+
+
+def calc_travel(lat: float, lon: float, utc_start: datetime, speed_kts: float, heading: float) -> tuple[float, float]:
+    """Calculate travel from lat, lon starting at a utc_start with given speed and heading to now
 
     Arguments:
         lat {float} -- Starting latitude
@@ -79,22 +113,7 @@ def calc_travel(lat: float, lon: float, utc_start: datetime, speed_kts: float, h
     """
     age = datetime.utcnow() - utc_start
     age_s = age.total_seconds()
-
-    R = 6378.1 # Radius of the Earth
-    brng = math.radians(heading) # Bearing is 90 degrees converted to radians.
-    speed_mps = 0.514444 * speed_kts # knots -> m/s
-    d = (age_s * speed_mps) / 1000.0 # Distance in km
-
-    lat1 = math.radians(lat) # Current lat point converted to radians
-    lon1 = math.radians(lon) # Current long point converted to radians
-
-    lat2 = math.asin(math.sin(lat1)*math.cos(d/R) + math.cos(lat1)*math.sin(d/R)*math.cos(brng))
-    lon2 = lon1 + math.atan2(math.sin(brng)*math.sin(d/R)*math.cos(lat1), math.cos(d/R)-math.sin(lat1)*math.sin(lat2))
-
-    lat2 = math.degrees(lat2)
-    lon2 = math.degrees(lon2)
-
-    return (lat2, lon2)
+    return calc_travel2(lat, lon, age_s, speed_kts, heading)
 
 
 def blacklisted(url: str) -> bool:
@@ -115,8 +134,10 @@ def blacklisted(url: str) -> bool:
     return False
 
 
-def image_search(icao24: str, operator: str = None, type: str = None, registration: str = None, update_planedb: bool = True) -> str:
+def image_search(icao24: str, operator: str|None = None, type: str|None = None, registration: str|None = None, update_planedb: bool = True) -> str:
     """Search Bing for plane images. If found, update planedb with URL
+
+    #TODO: This is currently broken
 
     Arguments:
         icao24 {str} -- ICAO24 designation
@@ -175,3 +196,62 @@ def image_search(icao24: str, operator: str = None, type: str = None, registrati
     else:
         logging.error("Image search came up short for '%s', blacklisted (%s)?" % (searchTerm, icao24))
     return img_url
+
+def find_time_min_distance(my_lat: float, my_lon: float, lat: float, lon: float, speed_kts: float, heading: float) -> tuple[float|None, float|None]:
+    """Find minimum distance and how long until the aircraft reaches that distance
+
+    Args:
+        my_lat (float): Latitude of receiver
+        my_lon (float): Longitude of receiver
+        lat (float): Latitude of aircraft
+        lon (float): Longitude of aircraft
+        speed_kts (float): Aircraft speed in knots
+        heading (float): Aircraft heading in degrees
+
+    Returns:
+        tuple[float|None, float|None]: Time and min distance or (None, None) if plane is moving away
+    """
+    min_distance: float = 1e9
+    min_time: float = 0
+    time_step_s: float = 0.5
+    time: float = 0
+    initial_distance: float = coordinate_distance(my_lat, my_lon, lat, lon)
+
+    for _ in range(1, 60 * int(1/time_step_s)):
+        (new_lat, new_lon) = calc_travel2(lat, lon, time, speed_kts, heading)
+        distance: float = coordinate_distance(my_lat, my_lon, new_lat, new_lon)
+        if distance < min_distance:
+            min_distance = distance
+            min_time = time
+        #print(f"[{time:.2f}] : {distance:.3f}")
+        time += time_step_s
+
+    if initial_distance < min_distance or min_time == 0:
+        return (None, None)
+    return (round(min_time), min_distance)
+
+
+if __name__ == "__main__":
+    home_lat: float = 45.1
+    home_lon: float = 14.1
+    start_lat: float = 45.2
+    start_lon: float = 14
+    speed_kts: float = 120
+    heading: float = 170
+    min_distance: float|None
+    min_time: float|None
+
+    # Plane moving out way
+    (min_time, min_distance) = find_time_min_distance(home_lat, home_lon, start_lat, start_lon, speed_kts, heading)
+    if min_time is None or min_distance is None:
+        print("Plane is moving away")
+    else:
+        print(f"Min distance after {round(min_time):d}s: {min_distance:.1f} meters")
+
+    # Plane moving away
+    heading = 270
+    (min_time, min_distance) = find_time_min_distance(home_lat, home_lon, start_lat, start_lon, speed_kts, heading)
+    if min_time is None or min_distance is None:
+        print("Plane is moving away")
+    else:
+        print(f"Min distance after {round(min_time):d}s: {min_distance:.1f} meters")
