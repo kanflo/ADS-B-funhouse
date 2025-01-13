@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2021-2024 Johan Kanflo (github.com/kanflo)
+# Copyright (c) 2021-2025 Johan Kanflo (github.com/kanflo)
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -39,6 +39,7 @@ import time
 import json
 import argparse
 import utils
+import socket
 try:
     import mqttwrapper
 except ImportError:
@@ -154,8 +155,18 @@ def main():
                         level_styles = styles)
     logging.info(f"---[ Starting {sys.argv[0]} ]---------------------------------------------")
 
+    warned: bool = False
+    while not mqttwrapper.is_connected():
+        try:
+            mqttwrapper.run_script(mqtt_callback, broker=f"mqtt://{args.mqtt_host}", topics=[args.prox_topic], blocking=False)
+        except socket.gaierror:
+            if not warned:
+                logging.warning(f"Failed to connect to MQTT broker at {args.mqtt_host}, will retry")
+                warned = True
+            time.sleep(1)
+    logging.info(f"Connected to MQTT broker at {args.mqtt_host}")
+
     try:
-        mqttwrapper.run_script(mqtt_callback, broker=f"mqtt://{args.mqtt_host}", topics=[args.prox_topic], blocking=False)
         while True:
             time.sleep(5)
             if time.time() - last_update_time > 30 and current_icao24 is not None:
